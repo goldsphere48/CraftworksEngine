@@ -1,8 +1,9 @@
 #ifdef CW_PLATFORM_WINDOWS
 
-    #include "platform.h"
+#include "platform.h"
+#include "render/render.h"
 
-    #include <windows.h>
+#include <windows.h>
 
 namespace cw::platform
 {
