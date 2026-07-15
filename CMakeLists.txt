@@ -12,6 +12,7 @@ add_executable(cw
   engine/engine/main.cpp
   engine/engine/engine.cpp
   engine/platform/platform_windows.cpp
+  engine/logger/log.cpp
 )
 
 target_include_directories(cw PRIVATE ${CMAKE_SOURCE_DIR}/engine)

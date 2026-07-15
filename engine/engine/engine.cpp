@@ -1,5 +1,7 @@
 #include "engine.h"
 
+#include "logger/log.h"
+
 namespace cw::engine
 {
     static void OnWindowClose(void* userData)
@@ -25,6 +27,7 @@ namespace cw::engine
             delete engine;
             return nullptr;
         }
+        
         return engine;
     }
 
@@ -41,6 +44,8 @@ namespace cw::engine
     
     static int RunLoop(int argc, char** argv)
     {
+        cw::log::Initialize();
+
         Engine* engine = CreateEngine();
         if (!engine)
         {
