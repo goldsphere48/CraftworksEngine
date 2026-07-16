@@ -13,9 +13,15 @@ add_executable(cw
   engine/engine/engine.cpp
   engine/platform/platform_windows.cpp
   engine/logger/log.cpp
+  engine/graphics/renderer.cpp
+  engine/graphics/opengl/opengl_windows.cpp
+  engine/graphics/opengl/opengl_renderer.cpp
 )
 
-target_include_directories(cw PRIVATE ${CMAKE_SOURCE_DIR}/engine)
+target_include_directories(cw PRIVATE
+  ${CMAKE_SOURCE_DIR}/engine
+  ${CMAKE_SOURCE_DIR}/vendor
+)
 
 target_compile_definitions(cw PRIVATE
   $<$<CONFIG:Debug>:CW_BUILD_DEBUG=1>
@@ -24,7 +30,7 @@ target_compile_definitions(cw PRIVATE
 
 if (WIN32)
   target_compile_definitions(cw PRIVATE CW_PLATFORM_WINDOWS)
-  target_link_libraries(cw PRIVATE user32.lib)
+  target_link_libraries(cw PRIVATE user32.lib gdi32.lib opengl32.lib)
 endif()
 
 if (MSVC)

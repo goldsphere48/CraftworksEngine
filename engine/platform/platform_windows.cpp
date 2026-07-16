@@ -1,7 +1,6 @@
 #ifdef CW_PLATFORM_WINDOWS
 
 #include "platform.h"
-#include "render/render.h"
 
 #include <windows.h>
 
@@ -43,7 +42,7 @@ namespace cw::platform
         return 0;
     }
 
-    Context* CreateContext(const PlatformParams* params)
+    Context* Create(const ContextParams* params)
     {
         Context* ctx                     = new Context;
         ctx->WindowCloseCallback         = params->WindowCloseCallback;
@@ -88,6 +87,11 @@ namespace cw::platform
     void Destroy(Context* ctx)
     {
         delete ctx;
+    }
+
+    void* GetNativeWindowHandle(Context* ctx)
+    {
+        return ctx->Window;
     }
 
     void PollEvents()

@@ -4,6 +4,8 @@
 
 namespace cw::engine
 {
+    void DestroyEngine(const Engine* engine);
+        
     static void OnWindowClose(void* userData)
     {
         Engine* engine = static_cast<Engine*>(userData);
@@ -14,32 +16,52 @@ namespace cw::engine
     {
         Engine* engine = new Engine();
         
-        cw::platform::PlatformParams pp;
+        cw::platform::ContextParams pp;
         pp.WindowTitle = "CW Engine";
         pp.WindowWidth = 1024;
         pp.WindowHeight = 768;
         pp.WindowCloseCallback = OnWindowClose;
         pp.WindowCloseCallbackUserData = engine;
+        engine->Platform = cw::platform::Create(&pp);
 
-        engine->Platform = cw::platform::CreateContext(&pp);
-        if (!engine->Platform)
-        {
-            delete engine;
+        if (!engine->Platform) {
+            DestroyEngine(engine);
             return nullptr;
         }
         
+        cw::graphics::ContextParams gp;
+        gp.Window = cw::platform::GetNativeWindowHandle(engine->Platform);
+        gp.Backend = cw::graphics::RENDER_BACKEND_OPENGL;
+        engine->Graphics = cw::graphics::Create(&gp);
+        if (!engine->Graphics) {
+            DestroyEngine(engine);
+            return nullptr;
+        }
+
         return engine;
     }
 
     static void DestroyEngine(const Engine* engine)
     {
-        cw::platform::Destroy(engine->Platform);
+        if (engine->Graphics)
+        {
+            cw::graphics::Destroy(engine->Graphics);
+        }
+
+        if (engine->Platform)
+        {
+            cw::platform::Destroy(engine->Platform);
+        }
+        
         delete engine;
     }
 
     static void UpdateEngine(const Engine* engine)
     {
         cw::platform::PollEvents();
+
+        cw::graphics::BeginFrame(engine->Graphics);
+        cw::graphics::EndFrame(engine->Graphics);
     }
     
     static int RunLoop(int argc, char** argv)
@@ -56,6 +78,7 @@ namespace cw::engine
         {
             UpdateEngine(engine);
         }
+        
         DestroyEngine(engine);
 
         return 0;
