@@ -7,8 +7,8 @@ namespace cw::engine
 {
     struct Engine
     {
-        cw::platform::Context* Platform = nullptr;
-        cw::graphics::Context* Graphics = nullptr;
+        cw::platform::PlatformContext* Platform = nullptr;
+        cw::graphics::GraphicsContext* Graphics = nullptr;
         bool IsRunning = true;
     };
 }

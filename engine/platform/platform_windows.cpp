@@ -6,7 +6,7 @@
 
 namespace cw::platform
 {
-    struct Context
+    struct PlatformContext
     {
         FWindowCloseCallback WindowCloseCallback;
         void*                WindowCloseCallbackUserData;
@@ -17,15 +17,15 @@ namespace cw::platform
 
     static LRESULT CALLBACK WindowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        LONG_PTR lpUser = GetWindowLongPtr(window, GWLP_USERDATA);
-        Context* ctx    = reinterpret_cast<Context*>(lpUser);
+        LONG_PTR lpUser      = GetWindowLongPtr(window, GWLP_USERDATA);
+        PlatformContext* ctx = reinterpret_cast<PlatformContext*>(lpUser);
 
         switch (msg)
         {
             case WM_NCCREATE:
             {
                 CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
-                ctx                   = static_cast<Context*>(pCreate->lpCreateParams);
+                ctx                   = static_cast<PlatformContext*>(pCreate->lpCreateParams);
                 SetWindowLongPtr(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ctx));
                 return DefWindowProc(window, msg, wParam, lParam);
             }
@@ -42,9 +42,9 @@ namespace cw::platform
         return 0;
     }
 
-    Context* Create(const ContextParams* params)
+    PlatformContext* Create(const PlatformParams* params)
     {
-        Context* ctx                     = new Context;
+        PlatformContext* ctx             = new PlatformContext;
         ctx->WindowCloseCallback         = params->WindowCloseCallback;
         ctx->WindowCloseCallbackUserData = params->WindowCloseCallbackUserData;
         ctx->Instance                    = GetModuleHandleA(nullptr);
@@ -84,12 +84,12 @@ namespace cw::platform
         return ctx;
     }
 
-    void Destroy(Context* ctx)
+    void Destroy(PlatformContext* ctx)
     {
         delete ctx;
     }
 
-    void* GetNativeWindowHandle(Context* ctx)
+    void* GetNativeWindowHandle(PlatformContext* ctx)
     {
         return ctx->Window;
     }

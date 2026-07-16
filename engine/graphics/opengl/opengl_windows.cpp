@@ -20,42 +20,83 @@ PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = nullptr;
         if (!func)                                              \
         {                                                       \
             CW_ERROR("Failed to load %s function", #func);      \
-            return nullptr;                                     \
+            return false;                                       \
         }                                                       \
     } while (0)
 
 namespace cw::graphics
 {
-    struct GLPlatformContext
+    static const char* CLASS_NAME = "CW_GL_TEMP_WINDOW_CLASS";
+
+    struct GLWindowsContext
     {
-        HGLRC Context;
-        HWND  Window;
-        HDC   DeviceContext;
+        HGLRC     Context;
+        HWND      Window;
+        HDC       DeviceContext;
     };
 
-    static constexpr const char* TEMP_WINDOW_CLASS = "CW_GL_TEMP_WINDOW_CLASS";
+    static GLWindowsContext* g_Context = nullptr;
 
-    GLPlatformContext* GLInitializePlatform(void* window)
+    class DummyContext
     {
+    public:
+        HWND      Window = nullptr;
+        HDC       DeviceContext = nullptr;
+        HGLRC     Context = nullptr;
+        HINSTANCE Instance;
+        
+        ~DummyContext()
+        {
+            if (Context)
+            {
+                wglDeleteContext(Context);
+            }
+            if (DeviceContext)
+            {
+                ReleaseDC(Window, DeviceContext);
+            }
+            if (Window)
+            {
+                DestroyWindow(Window);
+                UnregisterClassA(CLASS_NAME, Instance);
+            }
+        }
+    };
+
+    static bool LoadGLExtensions()
+    {
+        LOAD_GL_PFN(wglChoosePixelFormatARB, PFNWGLCHOOSEPIXELFORMATARBPROC);
+        LOAD_GL_PFN(wglCreateContextAttribsARB, PFNWGLCREATECONTEXTATTRIBSARBPROC);
+
+        return true;
+    }
+
+    bool GLInitializePlatform(void* window)
+    {
+        CW_ASSERT(!g_Context);
+        
         HWND      hwnd     = static_cast<HWND>(window);
         HINSTANCE instance = GetModuleHandleA(nullptr);
+
+        DummyContext dummyCtx = {};
+        dummyCtx.Instance = instance;
 
         WNDCLASSEXA tempClass   = {};
         tempClass.cbSize        = sizeof(WNDCLASSEXA);
         tempClass.style         = CS_OWNDC;
         tempClass.lpfnWndProc   = DefWindowProcA;
         tempClass.hInstance     = instance;
-        tempClass.lpszClassName = TEMP_WINDOW_CLASS;
+        tempClass.lpszClassName = CLASS_NAME;
 
         if (RegisterClassExA(&tempClass) == 0)
         {
             CW_ERROR("Failed to register temporary window class");
-            return nullptr;
+            return false;
         }
 
-        HWND dummy = CreateWindowExA(
+        dummyCtx.Window = CreateWindowExA(
             0,
-            TEMP_WINDOW_CLASS,
+            CLASS_NAME,
             "CW GL Loader",
             WS_OVERLAPPED,
             CW_USEDEFAULT,
@@ -68,9 +109,13 @@ namespace cw::graphics
             nullptr
         );
 
-        CW_ASSERT(dummy);
+        if (!dummyCtx.Window)
+        {
+            CW_ERROR("Failed to create dummy window");
+            return false;
+        }
 
-        HDC fakeDC = GetDC(dummy);
+        dummyCtx.DeviceContext = GetDC(dummyCtx.Window);
 
         PIXELFORMATDESCRIPTOR fakeDesc;
         ZeroMemory(&fakeDesc, sizeof(PIXELFORMATDESCRIPTOR));
@@ -82,35 +127,34 @@ namespace cw::graphics
         fakeDesc.cAlphaBits = 8;
         fakeDesc.cDepthBits = 24;
 
-        int fakePFDID = ChoosePixelFormat(fakeDC, &fakeDesc);
+        int fakePFDID = ChoosePixelFormat(dummyCtx.DeviceContext, &fakeDesc);
         if (fakePFDID == 0)
         {
             CW_ERROR("Failed to choose pixel format");
-            return nullptr;
+            return false;
         }
 
-        if (!SetPixelFormat(fakeDC, fakePFDID, &fakeDesc))
+        if (!SetPixelFormat(dummyCtx.DeviceContext, fakePFDID, &fakeDesc))
         {
             CW_ERROR("Failed to set pixel format");
-            return nullptr;
+            return false;
         }
 
-        HGLRC fakeRC = wglCreateContext(fakeDC);
-        if (fakeRC == 0)
+        dummyCtx.Context = wglCreateContext(dummyCtx.DeviceContext);
+        if (dummyCtx.Context == 0)
         {
             CW_ERROR("Failed to create wgl context");
-            return nullptr;
+            return false;
         }
 
-        if (!wglMakeCurrent(fakeDC, fakeRC))
+        if (!wglMakeCurrent(dummyCtx.DeviceContext, dummyCtx.Context))
         {
             CW_ERROR("Failed to make current context");
-            return nullptr;
+            return false;
         }
 
-        LOAD_GL_PFN(wglChoosePixelFormatARB, PFNWGLCHOOSEPIXELFORMATARBPROC);
-        LOAD_GL_PFN(wglCreateContextAttribsARB, PFNWGLCREATECONTEXTATTRIBSARBPROC);
-
+        LoadGLExtensions();
+        
         const int pixelAttribs[] = {
             WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
             WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
@@ -128,13 +172,19 @@ namespace cw::graphics
 
         HDC dc = GetDC(hwnd);
 
+        if (!dc)
+        {
+            CW_ERROR("Failed to get dc");
+            return false;
+        }
+
         int  pixelFormatId = 0;
         UINT numFormats    = 0;
 
         if (!wglChoosePixelFormatARB(dc, pixelAttribs, nullptr, 1, &pixelFormatId, &numFormats) || numFormats == 0)
         {
             CW_ERROR("Failed to choose pixel format");
-            return nullptr;
+            return false;
         }
 
         PIXELFORMATDESCRIPTOR desc;
@@ -155,38 +205,35 @@ namespace cw::graphics
         if (rc == nullptr)
         {
             CW_ERROR("Failed to create opengl context");
-            return nullptr;
+            return false;
         }
 
         if (!wglMakeCurrent(dc, rc))
         {
+            wglDeleteContext(rc);
             CW_ERROR("Failed to make opengl context current");
-            return nullptr;
+            return false;
         }
 
-        wglDeleteContext(fakeRC);
-        ReleaseDC(dummy, fakeDC);
-        DestroyWindow(dummy);
-        UnregisterClassA(TEMP_WINDOW_CLASS, instance);
+        g_Context                = new GLWindowsContext;
+        g_Context->Window        = hwnd;
+        g_Context->Context       = rc;
+        g_Context->DeviceContext = dc;
 
-        GLPlatformContext* ctx = new GLPlatformContext();
-        ctx->Window            = hwnd;
-        ctx->Context           = rc;
-        ctx->DeviceContext     = dc;
-
-        return ctx;
+        return true;
     }
 
-    void GLDestroyPlatform(GLPlatformContext* ctx)
+    void GLDestroyPlatform()
     {
         wglMakeCurrent(nullptr, nullptr);
-        wglDeleteContext(ctx->Context);
-        delete ctx;
+        wglDeleteContext(g_Context->Context);
+        ReleaseDC(g_Context->Window, g_Context->DeviceContext);
+        delete g_Context;
     }
 
-    void GLSwapBuffers(GLPlatformContext* ctx)
+    void GLSwapBuffers()
     {
-        SwapBuffers(ctx->DeviceContext);
+        SwapBuffers(g_Context->DeviceContext);
     }
 }
 #endif

@@ -4,19 +4,19 @@
 
 namespace cw::graphics
 {
-    struct ContextParams
+    struct GraphicsParams
     {
         void*          Window;
-        RENDER_BACKEND Backend;
+        RENDER_BACKEND_TYPE Backend;
     };
 
-    struct Context;
+    struct GraphicsContext;
     
-    Context* Create(const ContextParams* params);
+    GraphicsContext* Create(const GraphicsParams* params);
 
-    void Destroy(Context* ctx);
+    void Destroy(GraphicsContext* ctx);
 
-    void BeginFrame(Context* ctx);
+    void BeginFrame();
 
-    void EndFrame(Context* ctx);
+    void EndFrame();
 }

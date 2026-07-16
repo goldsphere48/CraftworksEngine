@@ -11,20 +11,15 @@
 
 namespace cw::graphics
 {
-    static GLPlatformContext* g_Context;
-
     static bool Initialize(void* window)
     {
-        CW_ASSERT(!g_Context);
-
-        g_Context = GLInitializePlatform(window);
-        return g_Context != nullptr;
+        bool result = GLInitializePlatform(window);
+        return result;
     }
 
     static void Destroy()
     {
-        GLDestroyPlatform(g_Context);
-        g_Context = nullptr;
+        GLDestroyPlatform();
     }
 
     static void BeginFrame()
@@ -35,15 +30,15 @@ namespace cw::graphics
 
     static void EndFrame()
     {
-        GLSwapBuffers(g_Context);
+        GLSwapBuffers();
     }
 
 
     void GetGLBindings(RenderBackend* backend)
     {
-        backend->FInitialize = Initialize;
-        backend->FDestroy    = Destroy;
-        backend->FBeginFrame = BeginFrame;
-        backend->FEndFrame   = EndFrame;
+        backend->Initialize = Initialize;
+        backend->Destroy    = Destroy;
+        backend->BeginFrame = BeginFrame;
+        backend->EndFrame   = EndFrame;
     }
 }

@@ -1,49 +1,53 @@
 #include "renderer.h"
 
+#include "logger/log.h"
+#include "opengl/opengl_renderer.h"
+
 namespace cw::graphics
 {
-    struct Context
+    static RenderBackend g_Backend;
+    
+    struct GraphicsContext
     {
-        RenderBackend Renderer;
+    
     };
     
-    Context* Create(const ContextParams* params)
+    GraphicsContext* Create(const GraphicsParams* params)
     {
-        Context* ctx          = new Context;
-        ctx->Renderer.Backend = params->Backend;
+        g_Backend.BackendType = params->Backend;
 
-        switch(ctx->Renderer.Backend)
+        switch(g_Backend.BackendType)
         {
             case RENDER_BACKEND_OPENGL:
-                GetGLBindings(&ctx->Renderer);
+                GetGLBindings(&g_Backend);
                 break;
             default:
-                delete ctx;
                 return nullptr;
         }
 
-        if (!ctx->Renderer.FInitialize(params->Window))
+        if (!g_Backend.Initialize(params->Window))
         {
-            delete ctx;
+            g_Backend.Destroy();
             return nullptr;
         }
 
+        GraphicsContext* ctx = new GraphicsContext;
         return ctx;
     }
 
-    void BeginFrame(Context* ctx)
+    void BeginFrame()
     {
-        ctx->Renderer.FBeginFrame();
+        g_Backend.BeginFrame();
     }
 
-    void EndFrame(Context* ctx)
+    void EndFrame()
     {
-        ctx->Renderer.FEndFrame();
+        g_Backend.EndFrame();
     }
 
-    void Destroy(Context* ctx)
+    void Destroy(GraphicsContext* ctx)
     {
-        ctx->Renderer.FDestroy();
+        g_Backend.Destroy();
         delete ctx;
     }
 }

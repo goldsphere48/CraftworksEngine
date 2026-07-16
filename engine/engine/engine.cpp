@@ -4,7 +4,7 @@
 
 namespace cw::engine
 {
-    void DestroyEngine(const Engine* engine);
+    static void DestroyEngine(const Engine* engine);
         
     static void OnWindowClose(void* userData)
     {
@@ -16,7 +16,7 @@ namespace cw::engine
     {
         Engine* engine = new Engine();
         
-        cw::platform::ContextParams pp;
+        cw::platform::PlatformParams pp;
         pp.WindowTitle = "CW Engine";
         pp.WindowWidth = 1024;
         pp.WindowHeight = 768;
@@ -29,7 +29,7 @@ namespace cw::engine
             return nullptr;
         }
         
-        cw::graphics::ContextParams gp;
+        cw::graphics::GraphicsParams gp;
         gp.Window = cw::platform::GetNativeWindowHandle(engine->Platform);
         gp.Backend = cw::graphics::RENDER_BACKEND_OPENGL;
         engine->Graphics = cw::graphics::Create(&gp);
@@ -60,8 +60,8 @@ namespace cw::engine
     {
         cw::platform::PollEvents();
 
-        cw::graphics::BeginFrame(engine->Graphics);
-        cw::graphics::EndFrame(engine->Graphics);
+        cw::graphics::BeginFrame();
+        cw::graphics::EndFrame();
     }
     
     static int RunLoop(int argc, char** argv)

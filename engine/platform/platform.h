@@ -2,11 +2,11 @@
 
 namespace cw::platform
 {
-    struct Context;
+    struct PlatformContext;
 
     typedef void (*FWindowCloseCallback)(void* userData);
 
-    struct ContextParams
+    struct PlatformParams
     {
         FWindowCloseCallback WindowCloseCallback;
         void*                WindowCloseCallbackUserData;
@@ -16,11 +16,11 @@ namespace cw::platform
         const char* WindowTitle;
     };
 
-    Context* Create(const ContextParams* params);
+    PlatformContext* Create(const PlatformParams* params);
 
-    void Destroy(Context* ctx);
+    void Destroy(PlatformContext* ctx);
 
-    void* GetNativeWindowHandle(Context* ctx);
+    void* GetNativeWindowHandle(PlatformContext* ctx);
 
     void PollEvents();
 }

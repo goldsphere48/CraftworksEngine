@@ -2,11 +2,13 @@
 
 namespace cw::graphics
 {
-    struct GLPlatformContext;
+    struct RenderBackend;
 
-    GLPlatformContext* GLInitializePlatform(void* window);
+    bool GLInitializePlatform(void* window);
     
-    void GLDestroyPlatform(GLPlatformContext* ctx);
+    void GLDestroyPlatform();
 
-    void GLSwapBuffers(GLPlatformContext* ctx);
+    void GLSwapBuffers();
+
+    void GetGLBindings(RenderBackend* backend);
 }

@@ -2,29 +2,27 @@
 
 namespace cw::graphics
 {
-    enum RENDER_BACKEND
+    enum RENDER_BACKEND_TYPE
     {
         RENDER_BACKEND_NONE,
         RENDER_BACKEND_OPENGL,
     };
 
-    typedef bool (*FCreateContextCallback)(void* window);
+    typedef bool (*FInitialize)(void* window);
 
-    typedef void (*FDestroyContextCallback)();
+    typedef void (*FDestroy)();
 
-    typedef void (*FBeginFrameCallback)();
+    typedef void (*FBeginFrame)();
 
-    typedef void (*FEndFrameCallback)();
+    typedef void (*FEndFrame)();
 
     struct RenderBackend
     {
-        FCreateContextCallback  FInitialize;
-        FDestroyContextCallback FDestroy;
-        FBeginFrameCallback     FBeginFrame;
-        FEndFrameCallback       FEndFrame;
+        FInitialize Initialize;
+        FDestroy    Destroy;
+        FBeginFrame BeginFrame;
+        FEndFrame   EndFrame;
 
-        RENDER_BACKEND Backend = RENDER_BACKEND_NONE;
+        RENDER_BACKEND_TYPE BackendType = RENDER_BACKEND_NONE;
     };
-
-    void GetGLBindings(RenderBackend* backend);
 }
