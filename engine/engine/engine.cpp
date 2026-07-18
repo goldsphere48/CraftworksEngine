@@ -1,6 +1,7 @@
 #include "engine.h"
 
 #include "logger/log.h"
+#include "filesystem/filesystem.h"
 
 namespace cw::engine
 {
@@ -24,16 +25,20 @@ namespace cw::engine
         pp.WindowCloseCallbackUserData = engine;
         engine->Platform = cw::platform::Create(&pp);
 
-        if (!engine->Platform) {
+        if (!engine->Platform)
+        {
             DestroyEngine(engine);
             return nullptr;
         }
+
+        cw::fs::Initialize();
         
         cw::graphics::GraphicsParams gp;
         gp.Window = cw::platform::GetNativeWindowHandle(engine->Platform);
         gp.Backend = cw::graphics::RENDER_BACKEND_OPENGL;
         engine->Graphics = cw::graphics::Create(&gp);
-        if (!engine->Graphics) {
+        if (!engine->Graphics)
+        {
             DestroyEngine(engine);
             return nullptr;
         }
@@ -52,6 +57,8 @@ namespace cw::engine
         {
             cw::platform::Destroy(engine->Platform);
         }
+
+        cw::fs::Shutdown();
         
         delete engine;
     }

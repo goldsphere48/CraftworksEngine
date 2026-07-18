@@ -16,6 +16,8 @@ add_executable(cw
   engine/graphics/renderer.cpp
   engine/graphics/opengl/opengl_windows.cpp
   engine/graphics/opengl/opengl_renderer.cpp
+  engine/filesystem/filesystem.cpp
+  engine/filesystem/file_provider.cpp
 )
 
 target_include_directories(cw PRIVATE
@@ -25,6 +27,7 @@ target_include_directories(cw PRIVATE
 
 target_compile_definitions(cw PRIVATE
   $<$<CONFIG:Debug>:CW_BUILD_DEBUG=1>
+  $<$<CONFIG:Debug>:CW_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets">
   _CRT_SECURE_NO_WARNINGS
 )
 
