@@ -16,6 +16,7 @@ add_executable(cw
   engine/graphics/renderer.cpp
   engine/graphics/opengl/opengl_windows.cpp
   engine/graphics/opengl/opengl_renderer.cpp
+  engine/graphics/opengl/gl_functions.cpp
   engine/filesystem/filesystem.cpp
   engine/filesystem/file_provider.cpp
 )

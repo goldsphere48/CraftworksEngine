@@ -7,3 +7,5 @@
 #else
     #define CW_FORCEINLINE inline
 #endif
+
+#define CW_UNUSED(x) ((void)(x))

@@ -2,6 +2,7 @@
 
 #include "debug/debug.h"
 #include "opengl_renderer.h"
+#include "gl_functions.h"
 
 #include <windows.h>
 
@@ -10,23 +11,28 @@
 #include "gl/glext.h"
 #include "gl/wglext.h"
 
+#include <cstdint>
+
 PFNWGLCHOOSEPIXELFORMATARBPROC    wglChoosePixelFormatARB    = nullptr;
 PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = nullptr;
-
-#define LOAD_GL_PFN(func, pfn)                                  \
-    do                                                          \
-    {                                                           \
-        func = reinterpret_cast<pfn>(wglGetProcAddress(#func)); \
-        if (!func)                                              \
-        {                                                       \
-            CW_ERROR("Failed to load %s function", #func);      \
-            return false;                                       \
-        }                                                       \
-    } while (0)
 
 namespace cw::graphics
 {
     static const char* CLASS_NAME = "CW_GL_TEMP_WINDOW_CLASS";
+
+    void* GLGetProcAddress(const char* name)
+    {
+        PROC      proc = wglGetProcAddress(name);
+        uintptr_t v    = reinterpret_cast<uintptr_t>(proc);
+
+        if (v == 0 || v == 1 || v == 2 || v == 3 || v == static_cast<uintptr_t>(-1))
+        {
+            static HMODULE gl = LoadLibraryA("opengl32.dll");
+            return reinterpret_cast<void*>(GetProcAddress(gl, name));
+        }
+
+        return reinterpret_cast<void*>(proc);
+    }
 
     struct GLWindowsContext
     {
@@ -65,8 +71,8 @@ namespace cw::graphics
 
     static bool LoadGLExtensions()
     {
-        LOAD_GL_PFN(wglChoosePixelFormatARB, PFNWGLCHOOSEPIXELFORMATARBPROC);
-        LOAD_GL_PFN(wglCreateContextAttribsARB, PFNWGLCREATECONTEXTATTRIBSARBPROC);
+        CW_LOAD_GL(wglChoosePixelFormatARB, PFNWGLCHOOSEPIXELFORMATARBPROC);
+        CW_LOAD_GL(wglCreateContextAttribsARB, PFNWGLCREATECONTEXTATTRIBSARBPROC);
 
         return true;
     }
@@ -153,8 +159,11 @@ namespace cw::graphics
             return false;
         }
 
-        LoadGLExtensions();
-        
+        if (!LoadGLExtensions())
+        {
+            return false;
+        }
+
         const int pixelAttribs[] = {
             WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
             WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
@@ -194,10 +203,16 @@ namespace cw::graphics
         const int major = 4;
         const int minor = 5;
 
+        int contextFlags = 0;
+#ifdef CW_BUILD_DEBUG
+        contextFlags |= WGL_CONTEXT_DEBUG_BIT_ARB;
+#endif
+
         int contextAttribs[] = {
             WGL_CONTEXT_MAJOR_VERSION_ARB, major,
             WGL_CONTEXT_MINOR_VERSION_ARB, minor,
             WGL_CONTEXT_PROFILE_MASK_ARB,  WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+            WGL_CONTEXT_FLAGS_ARB,         contextFlags,
             0
         };
 
@@ -212,6 +227,13 @@ namespace cw::graphics
         {
             wglDeleteContext(rc);
             CW_ERROR("Failed to make opengl context current");
+            return false;
+        }
+
+        if (!LoadGLCore())
+        {
+            wglDeleteContext(rc);
+            CW_ERROR("Failed to load core GL functions");
             return false;
         }
 
