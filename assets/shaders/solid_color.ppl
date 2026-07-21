@@ -1,0 +1,2 @@
+vertex = "shaders/solid_color.vs"
+fragment = "shaders/solid_color.fs"

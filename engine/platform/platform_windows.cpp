@@ -106,14 +106,15 @@ namespace cw::platform
 
     bool GetExeDir(char* out_utf8, size_t size)
     {
-        wchar_t* buffer = new wchar_t[CW_MAX_PATH];
-        DWORD len = GetModuleFileNameW(nullptr, buffer, size);
+        wchar_t buffer[CW_MAX_PATH];
+        
+        DWORD len = GetModuleFileNameW(nullptr, buffer, CW_MAX_PATH);
         if (len == 0 || len == CW_MAX_PATH)
         {
             return false;
         }
 
-        for (DWORD i = len; i >= 0; --i)
+        for (DWORD i = len; i > 0; --i)
         {
             if (buffer[i - 1] == L'\\' || buffer[i - 1] == L'/')
             {
@@ -166,15 +167,17 @@ namespace cw::platform
             return false;
         }
 
-        void* data = malloc((size_t)size.QuadPart);
+        void* data = malloc((size_t)size.QuadPart + 1);
         DWORD read = 0;
         BOOL  ok   = ReadFile(file, data, (DWORD)size.QuadPart, &read, nullptr);
+        CloseHandle(file);
         if (!ok || read != (DWORD)size.QuadPart)
         {
             free(data);
             return false;
         }
 
+        ((char*)data)[read] = '\0';
         *out_data = data;
         *out_size = (size_t)size.QuadPart;
 

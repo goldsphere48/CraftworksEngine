@@ -19,12 +19,17 @@ add_executable(cw
   engine/graphics/opengl/gl_functions.cpp
   engine/filesystem/filesystem.cpp
   engine/filesystem/file_provider.cpp
+  engine/assets/assets_manager.cpp
 )
+
+add_subdirectory(vendor/tomlc17)
 
 target_include_directories(cw PRIVATE
   ${CMAKE_SOURCE_DIR}/engine
   ${CMAKE_SOURCE_DIR}/vendor
 )
+
+target_link_libraries(cw PRIVATE tomlc17)
 
 target_compile_definitions(cw PRIVATE
   $<$<CONFIG:Debug>:CW_BUILD_DEBUG=1>

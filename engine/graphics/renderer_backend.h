@@ -49,7 +49,7 @@ namespace cw::graphics
 
     struct PipelineDesc
     {
-        const ShaderDesc* Source;
+        const ShaderDesc  Source;
         const void*       Binary;
         size_t            BinarySize;
     };

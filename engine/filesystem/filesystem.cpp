@@ -83,7 +83,7 @@ namespace cw::fs
         g_fs.Providers[g_fs.ProvidersCount++] = provider;
     }
 
-    bool ReadFile(const char* virtual_path, FileBuffer* out)
+    FileBuffer* ReadFile(const char* virtual_path)
     {
         CW_ASSERT(g_fs.IsInitialized);
         
@@ -92,15 +92,17 @@ namespace cw::fs
             Provider* p = g_fs.Providers[i];
             if (p->Exists(p->Self, virtual_path))
             {
-                if (p->Read(p->Self, virtual_path, out))
+                FileBuffer* file = new FileBuffer;
+                if (p->Read(p->Self, virtual_path, file))
                 {
-                    return true;
+                    return file;
                 }
+                delete file;
             }
         }
 
         CW_ERROR("Failed to get resource %s", virtual_path);
-        return false;
+        return nullptr;
     }
 
     void FreeFile(FileBuffer* file)
@@ -111,5 +113,7 @@ namespace cw::fs
         free(file->Data);
         file->Data = nullptr;
         file->Size = 0;
+
+        delete file;
     }
 }

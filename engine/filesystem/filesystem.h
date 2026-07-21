@@ -18,7 +18,7 @@ namespace cw::fs
 
     void Mount(Provider* provider);
 
-    bool ReadFile(const char* virtual_path, FileBuffer* out);
+    FileBuffer* ReadFile(const char* virtual_path);
 
     void FreeFile(FileBuffer* file);
 }

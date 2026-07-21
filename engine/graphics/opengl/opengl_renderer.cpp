@@ -201,7 +201,7 @@ namespace cw::graphics
     {
         GLuint program = desc->Binary != nullptr ?
             CreateProgramFromBinary(desc->Binary, desc->BinarySize) :
-            CreateProgramFromSource(desc->Source);
+            CreateProgramFromSource(&desc->Source);
 
         if (program == 0)
         {
