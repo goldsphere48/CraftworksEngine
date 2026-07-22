@@ -30,6 +30,12 @@ PFNGLBINDVERTEXARRAYPROC         glBindVertexArray         = nullptr;
 PFNGLVERTEXATTRIBPOINTERPROC     glVertexAttribPointer     = nullptr;
 PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray = nullptr;
 
+PFNGLCREATEVERTEXARRAYSPROC      glCreateVertexArrays       = nullptr;
+PFNGLVERTEXARRAYATTRIBFORMATPROC glVertexArrayAttribFormat  = nullptr;
+PFNGLVERTEXARRAYATTRIBBINDINGPROC glVertexArrayAttribBinding = nullptr;
+PFNGLENABLEVERTEXARRAYATTRIBPROC glEnableVertexArrayAttrib  = nullptr;
+PFNGLVERTEXARRAYVERTEXBUFFERPROC glVertexArrayVertexBuffer  = nullptr;
+
 PFNGLDEBUGMESSAGECALLBACKPROC    glDebugMessageCallback    = nullptr;
 PFNGLDEBUGMESSAGECONTROLPROC     glDebugMessageControl     = nullptr;
 
@@ -66,6 +72,12 @@ namespace cw::graphics
         CW_LOAD_GL(glBindVertexArray, PFNGLBINDVERTEXARRAYPROC);
         CW_LOAD_GL(glVertexAttribPointer, PFNGLVERTEXATTRIBPOINTERPROC);
         CW_LOAD_GL(glEnableVertexAttribArray, PFNGLENABLEVERTEXATTRIBARRAYPROC);
+
+        CW_LOAD_GL(glCreateVertexArrays, PFNGLCREATEVERTEXARRAYSPROC);
+        CW_LOAD_GL(glVertexArrayAttribFormat, PFNGLVERTEXARRAYATTRIBFORMATPROC);
+        CW_LOAD_GL(glVertexArrayAttribBinding, PFNGLVERTEXARRAYATTRIBBINDINGPROC);
+        CW_LOAD_GL(glEnableVertexArrayAttrib, PFNGLENABLEVERTEXARRAYATTRIBPROC);
+        CW_LOAD_GL(glVertexArrayVertexBuffer, PFNGLVERTEXARRAYVERTEXBUFFERPROC);
 
         CW_LOAD_GL(glDebugMessageCallback, PFNGLDEBUGMESSAGECALLBACKPROC);
         CW_LOAD_GL(glDebugMessageControl, PFNGLDEBUGMESSAGECONTROLPROC);

@@ -13,6 +13,15 @@ namespace cw::graphics
     struct GLPipeline
     {
         GLuint Program;
+        GLuint Vao;
+    };
+
+    struct GLVertexAttrib
+    {
+        GLint     Size;
+        GLenum    Type;
+        GLboolean Normalized;
+        GLint     Components;
     };
 
 #ifdef CW_BUILD_DEBUG
@@ -197,19 +206,58 @@ namespace cw::graphics
         return program;
     }
 
+    static GLVertexAttrib ConvertToGLVertexAttribute(VERTEX_FORMAT format)
+    {
+        switch (format)
+        {
+            case VERTEX_FORMAT_FLOAT:  return { 4,  GL_FLOAT, false, 1 };
+            case VERTEX_FORMAT_FLOAT2: return { 8,  GL_FLOAT, false, 2 };
+            case VERTEX_FORMAT_FLOAT3: return { 12, GL_FLOAT, false, 3 };
+            case VERTEX_FORMAT_FLOAT4: return { 16, GL_FLOAT, false, 4 };
+            case VERTEX_FORMAT_UBYTE4: return { 16, GL_UNSIGNED_BYTE, false, 4 };
+        }
+
+        return { };
+    }
+
     static HPipeline CreatePipeline(const PipelineDesc* desc)
     {
-        GLuint program = desc->Binary != nullptr ?
-            CreateProgramFromBinary(desc->Binary, desc->BinarySize) :
-            CreateProgramFromSource(&desc->Source);
+        GLuint program = desc->Binary != nullptr
+            ? CreateProgramFromBinary(desc->Binary, desc->BinarySize)
+            : CreateProgramFromSource(&desc->Source);
 
         if (program == 0)
         {
             return nullptr;
         }
 
+        GLuint vao;
+        glCreateVertexArrays(1, &vao);
+
+        int offset = 0;
+        for (int i = 0; i < desc->Layout.AttributeCount; i++)
+        {
+            const VertexAttribute* attrib   = &desc->Layout.Attributes[i];
+            const GLVertexAttrib   glAttrib = ConvertToGLVertexAttribute(attrib->Format);
+
+            glVertexArrayAttribFormat(
+                vao,
+                attrib->Location,
+                glAttrib.Components,
+                glAttrib.Type,
+                glAttrib.Normalized,
+                offset
+            );
+
+            glVertexArrayAttribBinding(vao, attrib->Location, 0);
+            glEnableVertexArrayAttrib(vao, attrib->Location);
+
+            offset += glAttrib.Size;
+        }
+
         GLPipeline* glPipeline = new GLPipeline;
         glPipeline->Program    = program;
+        glPipeline->Vao        = vao;
 
         return glPipeline;
     }
@@ -268,6 +316,7 @@ namespace cw::graphics
     {
         GLPipeline* glPipeline = (GLPipeline*)pipeline;
         glDeleteProgram(glPipeline->Program);
+        glDeleteVertexArrays(1, &glPipeline->Vao);
         delete glPipeline;
     }
 
@@ -275,6 +324,7 @@ namespace cw::graphics
     {
         GLPipeline* glPipeline = (GLPipeline*)pipeline;
         glUseProgram(glPipeline->Program);
+        glBindVertexArray(glPipeline->Vao);
     }
 
     void GetGLBindings(RenderBackend* backend)

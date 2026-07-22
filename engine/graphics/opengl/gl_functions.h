@@ -42,6 +42,12 @@ extern PFNGLBINDVERTEXARRAYPROC         glBindVertexArray;
 extern PFNGLVERTEXATTRIBPOINTERPROC     glVertexAttribPointer;
 extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
 
+extern PFNGLCREATEVERTEXARRAYSPROC      glCreateVertexArrays;
+extern PFNGLVERTEXARRAYATTRIBFORMATPROC glVertexArrayAttribFormat;
+extern PFNGLVERTEXARRAYATTRIBBINDINGPROC glVertexArrayAttribBinding;
+extern PFNGLENABLEVERTEXARRAYATTRIBPROC glEnableVertexArrayAttrib;
+extern PFNGLVERTEXARRAYVERTEXBUFFERPROC glVertexArrayVertexBuffer;
+
 extern PFNGLDEBUGMESSAGECALLBACKPROC    glDebugMessageCallback;
 extern PFNGLDEBUGMESSAGECONTROLPROC     glDebugMessageControl;
 

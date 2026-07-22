@@ -22,7 +22,6 @@ namespace cw::graphics
         VERTEX_FORMAT_FLOAT2,
         VERTEX_FORMAT_FLOAT3,
         VERTEX_FORMAT_FLOAT4,
-        VERTEX_FORMAT_UBYTE4_NORM,
         VERTEX_FORMAT_UBYTE4,
     };
 
@@ -52,6 +51,7 @@ namespace cw::graphics
         const ShaderDesc  Source;
         const void*       Binary;
         size_t            BinarySize;
+        VertexLayout      Layout;
     };
 
     typedef bool (*FInitialize)(void* window);
