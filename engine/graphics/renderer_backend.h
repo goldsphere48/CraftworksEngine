@@ -40,6 +40,14 @@ namespace cw::graphics
 
     typedef void* HPipeline;
 
+    typedef void* HBuffer;
+
+    struct Mesh
+    {
+        HBuffer Vertices;
+        HBuffer Indicies;
+    };
+
     struct ShaderDesc
     {
         const char* VertexSource;
@@ -48,10 +56,17 @@ namespace cw::graphics
 
     struct PipelineDesc
     {
-        const ShaderDesc  Source;
-        const void*       Binary;
-        size_t            BinarySize;
-        VertexLayout      Layout;
+        const ShaderDesc Source;
+        const void*      Binary;
+        size_t           BinarySize;
+        VertexLayout     Layout;
+    };
+
+    struct BufferDesc
+    {
+        size_t Count;
+        size_t Size;
+        void*  Data;
     };
 
     typedef bool (*FInitialize)(void* window);
@@ -64,13 +79,19 @@ namespace cw::graphics
 
     typedef HPipeline (*FCreatePipeline)(const PipelineDesc* desc);
 
-    typedef void (*FDestroyPipeline)(HPipeline pipeline);
+    typedef void (*FDestroyPipeline)(const HPipeline pipeline);
 
-    typedef void (*FBindPipeline)(HPipeline pipeline);
+    typedef void (*FBindPipeline)(const HPipeline pipeline);
 
     typedef void (*FGetPipelineBinary)(HPipeline pipeline, void** out_data, size_t* out_size);
 
     typedef const char* (*FGetPipelineCacheId)();
+
+    typedef HBuffer (*FCreateBuffer)(const BufferDesc* desc);
+
+    typedef void (*FDeleteBuffer)(const HBuffer buffer);
+
+    typedef void (*FDrawMesh)(const Mesh* mesh, HPipeline pipeline);
 
     struct RenderBackend
     {
@@ -83,6 +104,9 @@ namespace cw::graphics
         FBindPipeline       BindPipeline;
         FGetPipelineBinary  GetPipelineBinary;
         FGetPipelineCacheId GetPipelineCacheId;
+        FCreateBuffer       CreateBuffer;
+        FDeleteBuffer       DeleteBuffer;
+        FDrawMesh           DrawMesh;
 
         RENDER_BACKEND_TYPE BackendType = RENDER_BACKEND_NONE;
     };

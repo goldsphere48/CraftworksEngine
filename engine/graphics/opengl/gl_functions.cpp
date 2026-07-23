@@ -1,43 +1,46 @@
 #include "gl_functions.h"
 
-PFNGLCREATESHADERPROC            glCreateShader            = nullptr;
-PFNGLDELETESHADERPROC            glDeleteShader            = nullptr;
-PFNGLSHADERSOURCEPROC            glShaderSource            = nullptr;
-PFNGLCOMPILESHADERPROC           glCompileShader           = nullptr;
-PFNGLGETSHADERIVPROC             glGetShaderiv             = nullptr;
-PFNGLGETSHADERINFOLOGPROC        glGetShaderInfoLog        = nullptr;
-PFNGLCREATEPROGRAMPROC           glCreateProgram           = nullptr;
-PFNGLDELETEPROGRAMPROC           glDeleteProgram           = nullptr;
-PFNGLATTACHSHADERPROC            glAttachShader            = nullptr;
-PFNGLDETACHSHADERPROC            glDetachShader            = nullptr;
-PFNGLLINKPROGRAMPROC             glLinkProgram             = nullptr;
-PFNGLGETPROGRAMIVPROC            glGetProgramiv            = nullptr;
-PFNGLGETPROGRAMINFOLOGPROC       glGetProgramInfoLog       = nullptr;
-PFNGLPROGRAMPARAMETERIPROC       glProgramParameteri       = nullptr;
-PFNGLGETPROGRAMBINARYPROC        glGetProgramBinary        = nullptr;
-PFNGLPROGRAMBINARYPROC           glProgramBinary           = nullptr;
-PFNGLUSEPROGRAMPROC              glUseProgram              = nullptr;
-PFNGLGETUNIFORMLOCATIONPROC      glGetUniformLocation      = nullptr;
-PFNGLUNIFORM4FPROC               glUniform4f               = nullptr;
-PFNGLUNIFORMMATRIX4FVPROC        glUniformMatrix4fv        = nullptr;
-PFNGLGENBUFFERSPROC              glGenBuffers              = nullptr;
-PFNGLDELETEBUFFERSPROC           glDeleteBuffers           = nullptr;
-PFNGLBINDBUFFERPROC              glBindBuffer              = nullptr;
-PFNGLBUFFERDATAPROC              glBufferData              = nullptr;
-PFNGLGENVERTEXARRAYSPROC         glGenVertexArrays         = nullptr;
-PFNGLDELETEVERTEXARRAYSPROC      glDeleteVertexArrays      = nullptr;
-PFNGLBINDVERTEXARRAYPROC         glBindVertexArray         = nullptr;
-PFNGLVERTEXATTRIBPOINTERPROC     glVertexAttribPointer     = nullptr;
-PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray = nullptr;
-
-PFNGLCREATEVERTEXARRAYSPROC      glCreateVertexArrays       = nullptr;
-PFNGLVERTEXARRAYATTRIBFORMATPROC glVertexArrayAttribFormat  = nullptr;
+PFNGLCREATESHADERPROC             glCreateShader             = nullptr;
+PFNGLDELETESHADERPROC             glDeleteShader             = nullptr;
+PFNGLSHADERSOURCEPROC             glShaderSource             = nullptr;
+PFNGLCOMPILESHADERPROC            glCompileShader            = nullptr;
+PFNGLGETSHADERIVPROC              glGetShaderiv              = nullptr;
+PFNGLGETSHADERINFOLOGPROC         glGetShaderInfoLog         = nullptr;
+PFNGLCREATEPROGRAMPROC            glCreateProgram            = nullptr;
+PFNGLDELETEPROGRAMPROC            glDeleteProgram            = nullptr;
+PFNGLATTACHSHADERPROC             glAttachShader             = nullptr;
+PFNGLDETACHSHADERPROC             glDetachShader             = nullptr;
+PFNGLLINKPROGRAMPROC              glLinkProgram              = nullptr;
+PFNGLGETPROGRAMIVPROC             glGetProgramiv             = nullptr;
+PFNGLGETPROGRAMINFOLOGPROC        glGetProgramInfoLog        = nullptr;
+PFNGLPROGRAMPARAMETERIPROC        glProgramParameteri        = nullptr;
+PFNGLGETPROGRAMBINARYPROC         glGetProgramBinary         = nullptr;
+PFNGLPROGRAMBINARYPROC            glProgramBinary            = nullptr;
+PFNGLUSEPROGRAMPROC               glUseProgram               = nullptr;
+PFNGLGETUNIFORMLOCATIONPROC       glGetUniformLocation       = nullptr;
+PFNGLUNIFORM4FPROC                glUniform4f                = nullptr;
+PFNGLUNIFORMMATRIX4FVPROC         glUniformMatrix4fv         = nullptr;
+PFNGLGENBUFFERSPROC               glGenBuffers               = nullptr;
+PFNGLDELETEBUFFERSPROC            glDeleteBuffers            = nullptr;
+PFNGLBINDBUFFERPROC               glBindBuffer               = nullptr;
+PFNGLBUFFERDATAPROC               glBufferData               = nullptr;
+PFNGLGENVERTEXARRAYSPROC          glGenVertexArrays          = nullptr;
+PFNGLDELETEVERTEXARRAYSPROC       glDeleteVertexArrays       = nullptr;
+PFNGLBINDVERTEXARRAYPROC          glBindVertexArray          = nullptr;
+PFNGLVERTEXATTRIBPOINTERPROC      glVertexAttribPointer      = nullptr;
+PFNGLENABLEVERTEXATTRIBARRAYPROC  glEnableVertexAttribArray  = nullptr;
+PFNGLCREATEBUFFERSPROC            glCreateBuffers            = nullptr;
+PFNGLCREATEVERTEXARRAYSPROC       glCreateVertexArrays       = nullptr;
+PFNGLVERTEXARRAYATTRIBFORMATPROC  glVertexArrayAttribFormat  = nullptr;
 PFNGLVERTEXARRAYATTRIBBINDINGPROC glVertexArrayAttribBinding = nullptr;
-PFNGLENABLEVERTEXARRAYATTRIBPROC glEnableVertexArrayAttrib  = nullptr;
-PFNGLVERTEXARRAYVERTEXBUFFERPROC glVertexArrayVertexBuffer  = nullptr;
-
-PFNGLDEBUGMESSAGECALLBACKPROC    glDebugMessageCallback    = nullptr;
-PFNGLDEBUGMESSAGECONTROLPROC     glDebugMessageControl     = nullptr;
+PFNGLENABLEVERTEXARRAYATTRIBPROC  glEnableVertexArrayAttrib  = nullptr;
+PFNGLVERTEXARRAYVERTEXBUFFERPROC  glVertexArrayVertexBuffer  = nullptr;
+PFNGLVERTEXARRAYELEMENTBUFFERPROC glVertexArrayElementBuffer = nullptr;
+PFNGLNAMEDBUFFERDATAPROC          glNamedBufferData          = nullptr;
+PFNGLNAMEDBUFFERSTORAGEPROC       glNamedBufferStorage       = nullptr;
+PFNGLNAMEDBUFFERSUBDATAPROC       glNamedBufferSubData       = nullptr;
+PFNGLDEBUGMESSAGECALLBACKPROC     glDebugMessageCallback     = nullptr;
+PFNGLDEBUGMESSAGECONTROLPROC      glDebugMessageControl      = nullptr;
 
 namespace cw::graphics
 {
@@ -72,15 +75,18 @@ namespace cw::graphics
         CW_LOAD_GL(glBindVertexArray, PFNGLBINDVERTEXARRAYPROC);
         CW_LOAD_GL(glVertexAttribPointer, PFNGLVERTEXATTRIBPOINTERPROC);
         CW_LOAD_GL(glEnableVertexAttribArray, PFNGLENABLEVERTEXATTRIBARRAYPROC);
-
         CW_LOAD_GL(glCreateVertexArrays, PFNGLCREATEVERTEXARRAYSPROC);
         CW_LOAD_GL(glVertexArrayAttribFormat, PFNGLVERTEXARRAYATTRIBFORMATPROC);
         CW_LOAD_GL(glVertexArrayAttribBinding, PFNGLVERTEXARRAYATTRIBBINDINGPROC);
         CW_LOAD_GL(glEnableVertexArrayAttrib, PFNGLENABLEVERTEXARRAYATTRIBPROC);
         CW_LOAD_GL(glVertexArrayVertexBuffer, PFNGLVERTEXARRAYVERTEXBUFFERPROC);
-
         CW_LOAD_GL(glDebugMessageCallback, PFNGLDEBUGMESSAGECALLBACKPROC);
         CW_LOAD_GL(glDebugMessageControl, PFNGLDEBUGMESSAGECONTROLPROC);
+        CW_LOAD_GL(glCreateBuffers, PFNGLCREATEBUFFERSPROC);
+        CW_LOAD_GL(glVertexArrayElementBuffer, PFNGLVERTEXARRAYELEMENTBUFFERPROC);
+        CW_LOAD_GL(glNamedBufferData, PFNGLNAMEDBUFFERDATAPROC);
+        CW_LOAD_GL(glNamedBufferStorage, PFNGLNAMEDBUFFERSTORAGEPROC);
+        CW_LOAD_GL(glNamedBufferSubData, PFNGLNAMEDBUFFERSUBDATAPROC);
 
         return true;
     }

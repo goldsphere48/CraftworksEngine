@@ -5,6 +5,8 @@
 
 namespace cw::engine
 {
+    graphics::Mesh* g_Mesh = nullptr;
+    
     static void DestroyEngine(const Engine* engine);
         
     static void OnWindowClose(void* userData)
@@ -68,9 +70,10 @@ namespace cw::engine
         cw::platform::PollEvents();
 
         cw::graphics::BeginFrame();
+        graphics::DrawMesh(engine->Graphics, g_Mesh);
         cw::graphics::EndFrame();
     }
-    
+
     static int RunLoop(int argc, char** argv)
     {
         cw::log::Initialize();
@@ -80,12 +83,26 @@ namespace cw::engine
         {
             return 0;
         }
-        
+
+        static const float vertices[] = {
+            -0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  1.0f, 0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
+             0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, 1.0f,  1.0f, 0.0f,
+             0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f, 1.0f, 1.0f,  0.5f, 1.0f,
+        };
+
+        static const uint32_t indices[] = {0, 1, 2};
+
+        g_Mesh = graphics::CreateMesh(
+            vertices, sizeof(vertices), indices, 3
+        );
+
         while (engine->IsRunning)
         {
             UpdateEngine(engine);
         }
-        
+
+        graphics::DestroyMesh(g_Mesh);
+
         DestroyEngine(engine);
 
         return 0;

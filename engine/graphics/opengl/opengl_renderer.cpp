@@ -1,6 +1,5 @@
 #include "opengl_renderer.h"
 
-#include "debug/debug.h"
 #include "gl_functions.h"
 #include "graphics/renderer_backend.h"
 #include "utils/macros.h"
@@ -13,7 +12,8 @@ namespace cw::graphics
     struct GLPipeline
     {
         GLuint Program;
-        GLuint Vao;
+        GLuint VAO;
+        GLuint Stride;
     };
 
     struct GLVertexAttrib
@@ -22,6 +22,13 @@ namespace cw::graphics
         GLenum    Type;
         GLboolean Normalized;
         GLint     Components;
+    };
+
+    struct GLBuffer
+    {
+        GLuint Id;
+        GLuint Count;
+        GLuint Size;
     };
 
 #ifdef CW_BUILD_DEBUG
@@ -210,21 +217,26 @@ namespace cw::graphics
     {
         switch (format)
         {
-            case VERTEX_FORMAT_FLOAT:  return { 4,  GL_FLOAT, false, 1 };
-            case VERTEX_FORMAT_FLOAT2: return { 8,  GL_FLOAT, false, 2 };
-            case VERTEX_FORMAT_FLOAT3: return { 12, GL_FLOAT, false, 3 };
-            case VERTEX_FORMAT_FLOAT4: return { 16, GL_FLOAT, false, 4 };
-            case VERTEX_FORMAT_UBYTE4: return { 16, GL_UNSIGNED_BYTE, false, 4 };
+            case VERTEX_FORMAT_FLOAT:
+                return {4, GL_FLOAT, false, 1};
+            case VERTEX_FORMAT_FLOAT2:
+                return {8, GL_FLOAT, false, 2};
+            case VERTEX_FORMAT_FLOAT3:
+                return {12, GL_FLOAT, false, 3};
+            case VERTEX_FORMAT_FLOAT4:
+                return {16, GL_FLOAT, false, 4};
+            case VERTEX_FORMAT_UBYTE4:
+                return {4, GL_UNSIGNED_BYTE, false, 4};
         }
 
-        return { };
+        return {};
     }
 
     static HPipeline CreatePipeline(const PipelineDesc* desc)
     {
         GLuint program = desc->Binary != nullptr
-            ? CreateProgramFromBinary(desc->Binary, desc->BinarySize)
-            : CreateProgramFromSource(&desc->Source);
+                             ? CreateProgramFromBinary(desc->Binary, desc->BinarySize)
+                             : CreateProgramFromSource(&desc->Source);
 
         if (program == 0)
         {
@@ -257,7 +269,8 @@ namespace cw::graphics
 
         GLPipeline* glPipeline = new GLPipeline;
         glPipeline->Program    = program;
-        glPipeline->Vao        = vao;
+        glPipeline->Stride     = offset;
+        glPipeline->VAO        = vao;
 
         return glPipeline;
     }
@@ -312,19 +325,54 @@ namespace cw::graphics
         return id;
     }
 
-    static void DestroyPipeline(HPipeline pipeline)
+    static void DestroyPipeline(const HPipeline pipeline)
     {
         GLPipeline* glPipeline = (GLPipeline*)pipeline;
         glDeleteProgram(glPipeline->Program);
-        glDeleteVertexArrays(1, &glPipeline->Vao);
+        glDeleteVertexArrays(1, &glPipeline->VAO);
         delete glPipeline;
     }
 
-    static void BindPipeline(HPipeline pipeline)
+    static void BindPipeline(const HPipeline pipeline)
     {
         GLPipeline* glPipeline = (GLPipeline*)pipeline;
         glUseProgram(glPipeline->Program);
-        glBindVertexArray(glPipeline->Vao);
+        glBindVertexArray(glPipeline->VAO);
+    }
+
+    static HBuffer CreateBuffer(const BufferDesc* desc)
+    {
+        GLuint vbo;
+        glCreateBuffers(1, &vbo);
+        glNamedBufferStorage(vbo, desc->Size, desc->Data, 0);
+
+        GLBuffer* buffer = new GLBuffer;
+        buffer->Size     = (GLuint)desc->Size;
+        buffer->Count    = (GLuint)desc->Count;
+        buffer->Id       = vbo;
+        return buffer;
+    }
+
+    static void DeleteBuffer(const HBuffer buffer)
+    {
+        GLBuffer* glBuffer = (GLBuffer*)buffer;
+        glDeleteBuffers(1, &glBuffer->Id);
+        delete glBuffer;
+    }
+
+    static void DrawMesh(const Mesh* mesh, HPipeline pipeline)
+    {
+        GLPipeline* glPipeline = (GLPipeline*)pipeline;
+
+        GLuint    stride   = glPipeline->Stride;
+        GLuint    vao      = glPipeline->VAO;
+        GLBuffer* indicies = (GLBuffer*)mesh->Indicies;
+        GLuint    vbo      = ((GLBuffer*)mesh->Vertices)->Id;
+        GLuint    ibo      = indicies->Id;
+
+        glVertexArrayVertexBuffer(vao, 0, vbo, 0, stride);
+        glVertexArrayElementBuffer(vao, ibo);
+        glDrawElements(GL_TRIANGLES, indicies->Count, GL_UNSIGNED_INT, nullptr);
     }
 
     void GetGLBindings(RenderBackend* backend)
@@ -338,5 +386,8 @@ namespace cw::graphics
         backend->BindPipeline       = BindPipeline;
         backend->GetPipelineBinary  = GetPipelineBinary;
         backend->GetPipelineCacheId = GetPipelineCacheId;
+        backend->CreateBuffer       = CreateBuffer;
+        backend->DeleteBuffer       = DeleteBuffer;
+        backend->DrawMesh           = DrawMesh;
     }
 }
