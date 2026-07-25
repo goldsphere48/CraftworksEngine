@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stddef.h>
+#include "core/types.h"
 
 namespace cw::graphics
 {
@@ -58,14 +58,14 @@ namespace cw::graphics
     {
         const ShaderDesc Source;
         const void*      Binary;
-        size_t           BinarySize;
+        usize            BinarySize;
         VertexLayout     Layout;
     };
 
     struct BufferDesc
     {
-        size_t Count;
-        size_t Size;
+        usize Count;
+        usize Size;
         void*  Data;
     };
 
@@ -83,7 +83,7 @@ namespace cw::graphics
 
     typedef void (*FBindPipeline)(const HPipeline pipeline);
 
-    typedef void (*FGetPipelineBinary)(HPipeline pipeline, void** out_data, size_t* out_size);
+    typedef void (*FGetPipelineBinary)(HPipeline pipeline, void** out_data, usize* out_size);
 
     typedef const char* (*FGetPipelineCacheId)();
 

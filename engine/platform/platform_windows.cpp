@@ -104,7 +104,7 @@ namespace cw::platform
         }
     }
 
-    bool GetExeDir(char* out_utf8, size_t size)
+    bool GetExeDir(char* out_utf8, usize size)
     {
         wchar_t buffer[CW_MAX_PATH];
         
@@ -137,7 +137,7 @@ namespace cw::platform
         return written > 0;
     }
 
-    bool ReadFileToBuffer(const char* utf8_path, void** out_data, size_t* out_size)
+    bool ReadFileToBuffer(const char* utf8_path, void** out_data, usize* out_size)
     {
         wchar_t path[CW_MAX_PATH];
         if (MultiByteToWideChar(CP_UTF8, 0, utf8_path, -1, path, CW_MAX_PATH) == 0)
@@ -167,7 +167,7 @@ namespace cw::platform
             return false;
         }
 
-        void* data = malloc((size_t)size.QuadPart + 1);
+        void* data = malloc((usize)size.QuadPart + 1);
         DWORD read = 0;
         BOOL  ok   = ReadFile(file, data, (DWORD)size.QuadPart, &read, nullptr);
         CloseHandle(file);
@@ -179,7 +179,7 @@ namespace cw::platform
 
         ((char*)data)[read] = '\0';
         *out_data = data;
-        *out_size = (size_t)size.QuadPart;
+        *out_size = (usize)size.QuadPart;
 
         return true;
     }

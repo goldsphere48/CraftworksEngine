@@ -13,7 +13,7 @@ namespace cw::fs
 
     struct FileSystem
     {
-        size_t    ProvidersCount;
+        usize     ProvidersCount;
         Provider* Providers[MAX_PROVIDERS];
         char      AssetsRoot[CW_MAX_PATH];
         bool      IsInitialized = false;
@@ -21,7 +21,7 @@ namespace cw::fs
 
     FileSystem g_fs;
 
-    static const void ResolveAssetsRoot(char* out, size_t size)
+    static const void ResolveAssetsRoot(char* out, usize size)
     {
 #ifdef CW_ASSETS_DIR
         snprintf(out, size, "%s", CW_ASSETS_DIR);

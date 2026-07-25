@@ -14,7 +14,7 @@ namespace cw::fs
         const char* Root;
     };
 
-    static void JoinPath(FileProvider* provider, const char* path, char* out, size_t size)
+    static void JoinPath(FileProvider* provider, const char* path, char* out, usize size)
     {
         const char* rel = path;
         while (*rel == '/' || *rel == '\\')

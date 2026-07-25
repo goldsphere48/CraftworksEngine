@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/types.h"
+
 constexpr unsigned int CW_MAX_PATH = 1024;
 
 namespace cw::platform
@@ -26,7 +28,7 @@ namespace cw::platform
 
     void PollEvents();
 
-    bool GetExeDir(char* out_utf8, size_t size);
+    bool GetExeDir(char* out_utf8, usize size);
 
-    bool ReadFileToBuffer(const char* utf8_path, void** out_data, size_t* out_size);
+    bool ReadFileToBuffer(const char* utf8_path, void** out_data, usize* out_size);
 }

@@ -188,7 +188,7 @@ namespace cw::graphics
         return program;
     }
 
-    static GLuint CreateProgramFromBinary(const void* data, size_t size)
+    static GLuint CreateProgramFromBinary(const void* data, usize size)
     {
         if (data == nullptr || size < sizeof(GLenum))
         {
@@ -275,7 +275,7 @@ namespace cw::graphics
         return glPipeline;
     }
 
-    static void GetPipelineBinary(HPipeline pipeline, void** out_binary, size_t* out_size)
+    static void GetPipelineBinary(HPipeline pipeline, void** out_binary, usize* out_size)
     {
         GLPipeline* glPipeline = (GLPipeline*)pipeline;
 
@@ -288,7 +288,7 @@ namespace cw::graphics
             return;
         }
 
-        size_t total  = sizeof(GLenum) + length;
+        usize total  = sizeof(GLenum) + length;
         char*  buffer = (char*)(malloc(total));
 
         GLenum  format  = 0;

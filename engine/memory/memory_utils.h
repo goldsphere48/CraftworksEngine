@@ -1,11 +1,13 @@
 #pragma once
 
 #include "utils/macros.h"
+#include "core/types.h"
+
 #include <memory.h>
 
 namespace cw::memory
 {
-    CW_FORCEINLINE void MemZero(void* ptr, size_t size)
+    CW_FORCEINLINE void MemZero(void* ptr, usize size)
     {
         memset(ptr, 0, size);
     }

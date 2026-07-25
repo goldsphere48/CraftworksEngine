@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/types.h"
+
 namespace cw::fs
 {
     struct Provider;
@@ -7,7 +9,7 @@ namespace cw::fs
     struct FileBuffer
     {
         void* Data;
-        size_t Size;
+        usize Size;
     };
     
     void Initialize();

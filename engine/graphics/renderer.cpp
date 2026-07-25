@@ -95,7 +95,7 @@ namespace cw::graphics
         g_Backend.DrawMesh(mesh, ctx->Pipeline);
     }
 
-    Mesh* CreateMesh(const void* vertices, size_t vertices_size, const uint32_t* indices, size_t index_count)
+    Mesh* CreateMesh(const void* vertices, usize vertices_size, const uint32* indices, usize index_count)
     {
         BufferDesc vertexDesc = {
             .Count = 0,
@@ -105,7 +105,7 @@ namespace cw::graphics
 
         BufferDesc indexDesc = {
             .Count = index_count,
-            .Size  = index_count * sizeof(uint32_t),
+            .Size  = index_count * sizeof(uint32),
             .Data  = (void*)indices,
         };
 

@@ -90,7 +90,7 @@ namespace cw::engine
              0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f, 1.0f, 1.0f,  0.5f, 1.0f,
         };
 
-        static const uint32_t indices[] = {0, 1, 2};
+        static const uint32 indices[] = {0, 1, 2};
 
         g_Mesh = graphics::CreateMesh(
             vertices, sizeof(vertices), indices, 3

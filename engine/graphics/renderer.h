@@ -1,19 +1,18 @@
 #pragma once
 
 #include "renderer_backend.h"
-
-#include <stdint.h>
+#include "core/types.h"
 
 namespace cw::graphics
 {
     struct GraphicsParams
     {
-        void*          Window;
+        void*               Window;
         RENDER_BACKEND_TYPE Backend;
     };
 
     struct GraphicsContext;
-    
+
     GraphicsContext* Create(const GraphicsParams* params);
 
     void Destroy(GraphicsContext* ctx);
@@ -28,7 +27,12 @@ namespace cw::graphics
 
     void DrawMesh(const GraphicsContext* ctx, const Mesh* mesh);
 
-    Mesh* CreateMesh(const void* vertices, size_t vertices_size, const uint32_t* indices, size_t index_count);
+    Mesh* CreateMesh(
+        const void*   vertices,
+        usize         vertices_size,
+        const uint32* indices,
+        usize         index_count
+    );
 
     void DestroyMesh(const Mesh* mesh);
 }
