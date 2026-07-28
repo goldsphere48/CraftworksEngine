@@ -3,6 +3,8 @@
 #include "core/concepts.h"
 #include "core/templates.h"
 #include "core/types.h"
+#include "debug/debug.h"
+#include "math_utils.h"
 
 #include <cmath>
 #include <type_traits>
@@ -126,6 +128,8 @@ namespace cw::math
     template<CScalar T, usize N>
     constexpr Vector<T, N>& operator/=(Vector<T, N>& lhs, T rhs)
     {
+        CW_ASSERT(rhs != T{0});
+
         for (usize i = 0; i < N; ++i)
         {
             lhs.Data[i] /= rhs;
@@ -245,7 +249,10 @@ namespace cw::math
     template<CScalar T, usize N>
     constexpr Vector<float, N> Normalize(const Vector<T, N>& vector)
     {
-        double           length = Length(vector);
+        double length = Length(vector);
+
+        CW_ASSERT(length != 0.0);
+
         Vector<float, N> result{};
         for (usize i = 0; i < N; ++i)
         {
@@ -310,6 +317,50 @@ namespace cw::math
     {
         return {vector.Y, -vector.X};
     }
+
+    template<CFloating T, usize N>
+    constexpr bool NearlyEqual(
+        const Vector<T, N>& lhs, const Vector<T, N>& rhs, T tolerance = Epsilon<T>
+    )
+    {
+        for (usize i = 0; i < N; ++i)
+        {
+            if (!NearlyEqual(lhs.Data[i], rhs.Data[i], tolerance))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<CInteger T, usize N>
+    constexpr bool NearlyEqual(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
+    {
+        for (usize i = 0; i < N; ++i)
+        {
+            if (lhs.Data[i] != rhs.Data[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<CFloating T, usize N>
+    constexpr bool NearlyZero(const Vector<T, N>& vector, T tolerance = Epsilon<T>)
+    {
+        for (usize i = 0; i < N; ++i)
+        {
+            if (!NearlyZero(vector.Data[i], tolerance))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 
 namespace cw::math::vec
@@ -359,4 +410,34 @@ namespace cw::math::vec
 
     template<CScalar T, usize N>
     requires(N >= 3) constexpr Vector<T, N> UnitZ = Axis<T, N>(2, T{1});
+
+    template<CScalar T, usize N>
+    requires(N >= 4) constexpr Vector<T, N> UnitW = Axis<T, N>(3, T{1});
+}
+
+namespace cw::math::vec2
+{
+    inline constexpr Vec2 Zero  = vec::Zero<float, 2>;
+    inline constexpr Vec2 One   = vec::One<float, 2>;
+    inline constexpr Vec2 UnitX = vec::UnitX<float, 2>;
+    inline constexpr Vec2 UnitY = vec::UnitY<float, 2>;
+}
+
+namespace cw::math::vec3
+{
+    inline constexpr Vec3 Zero  = vec::Zero<float, 3>;
+    inline constexpr Vec3 One   = vec::One<float, 3>;
+    inline constexpr Vec3 UnitX = vec::UnitX<float, 3>;
+    inline constexpr Vec3 UnitY = vec::UnitY<float, 3>;
+    inline constexpr Vec3 UnitZ = vec::UnitZ<float, 3>;
+}
+
+namespace cw::math::vec4
+{
+    inline constexpr Vec4 Zero  = vec::Zero<float, 4>;
+    inline constexpr Vec4 One   = vec::One<float, 4>;
+    inline constexpr Vec4 UnitX = vec::UnitX<float, 4>;
+    inline constexpr Vec4 UnitY = vec::UnitY<float, 4>;
+    inline constexpr Vec4 UnitZ = vec::UnitZ<float, 4>;
+    inline constexpr Vec4 UnitW = vec::UnitW<float, 4>;
 }

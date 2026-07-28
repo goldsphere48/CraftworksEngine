@@ -263,6 +263,22 @@ TEST(VectorArithmeticTest, DividesByScalar)
     EXPECT_FLOAT_EQ(3.0f, c.Z);
 }
 
+TEST(VectorArithmeticTest, AcceptsSmallNonZeroDivisor)
+{
+    auto c = Make<float>(1.0f, 2.0f, 3.0f) / 1e-8f;
+
+    EXPECT_FLOAT_EQ(1e8f, c.X);
+    EXPECT_FLOAT_EQ(3e8f, c.Z);
+}
+
+TEST(VectorNormalizeTest, AcceptsVeryShortVector)
+{
+    auto v = Normalize(Make<float>(0.0f, 1e-20f));
+
+    EXPECT_FLOAT_EQ(0.0f, v.X);
+    EXPECT_FLOAT_EQ(1.0f, v.Y);
+}
+
 TEST(VectorArithmeticTest, BinaryOperatorsLeaveOperandsUntouched)
 {
     auto a = Make<int>(1, 2, 3);
@@ -579,6 +595,49 @@ TEST(VectorPerpTest, AppliedFourTimesReturnsOriginal)
 
     EXPECT_EQ(v.X, r.X);
     EXPECT_EQ(v.Y, r.Y);
+}
+
+TEST(VectorShorthandTest, MatchTheirTemplateCounterparts)
+{
+    EXPECT_TRUE(NearlyEqual(vec2::Zero, Zero<float, 2>));
+    EXPECT_TRUE(NearlyEqual(vec2::One, One<float, 2>));
+    EXPECT_TRUE(NearlyEqual(vec2::UnitX, UnitX<float, 2>));
+    EXPECT_TRUE(NearlyEqual(vec2::UnitY, UnitY<float, 2>));
+
+    EXPECT_TRUE(NearlyEqual(vec3::Zero, Zero<float, 3>));
+    EXPECT_TRUE(NearlyEqual(vec3::One, One<float, 3>));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitX, UnitX<float, 3>));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitY, UnitY<float, 3>));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitZ, UnitZ<float, 3>));
+
+    EXPECT_TRUE(NearlyEqual(vec4::Zero, Zero<float, 4>));
+    EXPECT_TRUE(NearlyEqual(vec4::One, One<float, 4>));
+    EXPECT_TRUE(NearlyEqual(vec4::UnitX, UnitX<float, 4>));
+    EXPECT_TRUE(NearlyEqual(vec4::UnitY, UnitY<float, 4>));
+    EXPECT_TRUE(NearlyEqual(vec4::UnitZ, UnitZ<float, 4>));
+    EXPECT_TRUE(NearlyEqual(vec4::UnitW, UnitW<float, 4>));
+}
+
+TEST(VectorShorthandTest, SelectTheExpectedAxis)
+{
+    EXPECT_FLOAT_EQ(1.0f, vec3::UnitY.Y);
+    EXPECT_FLOAT_EQ(0.0f, vec3::UnitY.X);
+    EXPECT_FLOAT_EQ(0.0f, vec3::UnitY.Z);
+
+    EXPECT_FLOAT_EQ(1.0f, vec4::UnitW.W);
+    EXPECT_FLOAT_EQ(0.0f, vec4::UnitW.Z);
+}
+
+namespace
+{
+    static_assert(std::is_same_v<decltype(vec2::Zero), const Vec2>);
+    static_assert(std::is_same_v<decltype(vec3::UnitZ), const Vec3>);
+    static_assert(std::is_same_v<decltype(vec4::UnitW), const Vec4>);
+
+    static_assert(vec2::One.Data[0] == 1.0f && vec2::One.Data[1] == 1.0f);
+    static_assert(vec3::UnitZ.Data[2] == 1.0f && vec3::UnitZ.Data[0] == 0.0f);
+    static_assert(vec4::UnitW.Data[3] == 1.0f && vec4::UnitW.Data[2] == 0.0f);
+    static_assert(vec4::Zero.Data[3] == 0.0f);
 }
 
 namespace
