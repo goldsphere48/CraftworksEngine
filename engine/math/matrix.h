@@ -8,6 +8,7 @@
 #include "vector.h"
 
 #include <utility>
+#include <cmath>
 #include <type_traits>
 
 namespace cw::math
@@ -22,9 +23,6 @@ namespace cw::math
     using Mat2  = Matrix<float, 2, 2>;
     using Mat3  = Matrix<float, 3, 3>;
     using Mat4  = Matrix<float, 4, 4>;
-    
-    using Mat32 = Matrix<float, 3, 2>;
-    using Mat34 = Matrix<float, 3, 4>;
 
     template<CScalar T>
     using DeterminantResultT = std::conditional_t<CFloating<T>, T, int64>;
@@ -165,35 +163,6 @@ namespace cw::math
         return result;
     }
 
-    template<CFloating T, usize R, usize C>
-    constexpr bool NearlyEqual(
-        const Matrix<T, R, C>& lhs, const Matrix<T, R, C>& rhs, T tolerance = Epsilon<T>
-    )
-    {
-        for (usize i = 0; i < R * C; ++i)
-        {
-            if (!NearlyEqual(lhs.Data[i], rhs.Data[i], tolerance))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    template<CInteger T, usize R, usize C>
-    constexpr bool NearlyEqual(const Matrix<T, R, C>& lhs, const Matrix<T, R, C>& rhs)
-    {
-        for (usize i = 0; i < R * C; ++i)
-        {
-            if (lhs.Data[i] != rhs.Data[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 }
 
 namespace cw::math::mat
@@ -606,4 +575,125 @@ namespace cw::math::mat4
 {
     inline constexpr Mat4 Identity = mat::Identity<float, 4>;
     inline constexpr Mat4 Zero     = mat::Zero<float, 4, 4>;
+}
+
+namespace cw::math::mat4
+{
+    constexpr Vec3 TransformDirection(const Mat4& matrix, const Vec3& direction)
+    {
+        Vec4 transformed = matrix * Vec4 { direction.X, direction.Y, direction.Z, 0.0f };
+        
+        return Vec3
+        {
+            transformed.X,
+            transformed.Y,
+            transformed.Z
+        };
+    }
+
+    constexpr Vec3 TransformPoint(const Mat4& matrix, const Vec3& point)
+    {
+        Vec4 transformed = matrix * Vec4 { point.X, point.Y, point.Z, 1.0f };
+        
+        return Vec3
+        {
+            transformed.X,
+            transformed.Y,
+            transformed.Z
+        }; 
+    }
+    
+    constexpr Vec3 ProjectPoint(const Mat4& matrix, const Vec3& point)
+    {
+        Vec4 transformed = matrix * Vec4 { point.X, point.Y, point.Z, 1.0f };
+
+        float w = transformed.W;
+
+        CW_ASSERT(w != 0.0f);
+        
+        return Vec3
+        {
+            transformed.X / w,
+            transformed.Y / w,
+            transformed.Z / w
+        };
+    }
+
+    constexpr Mat4 Translation(const Vec3& vector)
+    {
+        return mat::Make<float, 4, 4>(
+            1.0f, 0.0f, 0.0f, vector.X,
+            0.0f, 1.0f, 0.0f, vector.Y,
+            0.0f, 0.0f, 1.0f, vector.Z,
+            0.0f, 0.0f, 0.0f, 1.0f
+        );
+    }
+
+    constexpr Mat4 Scale(const Vec3& scale)
+    {
+        return mat::Make<float, 4, 4>(
+            scale.X, 0.0f, 0.0f, 0.0f,
+            0.0f, scale.Y, 0.0f, 0.0f,
+            0.0f, 0.0f, scale.Z, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f
+        );
+    }
+    
+    constexpr Mat4 Scale(float scale)
+    {
+        return Scale(Vec3{
+            scale,
+            scale,
+            scale
+        });
+    }
+
+    inline Mat4 RotationZ(float radians)
+    {
+        const float sina = std::sin(radians);
+        const float cosa = std::cos(radians);
+
+        return mat::Make<float, 4, 4>(
+            cosa, -sina, 0.0f, 0.0f,
+            sina,  cosa, 0.0f, 0.0f,
+            0.0f,  0.0f, 1.0f, 0.0f,
+            0.0f,  0.0f, 0.0f, 1.0f
+        );
+    }
+
+    inline Mat4 RotationX(float radians)
+    {
+        const float sina = std::sin(radians);
+        const float cosa = std::cos(radians);
+
+        return mat::Make<float, 4, 4>(
+            1.0f, 0.0f,  0.0f, 0.0f,
+            0.0f, cosa, -sina, 0.0f,
+            0.0f, sina,  cosa, 0.0f,
+            0.0f, 0.0f,  0.0f, 1.0f
+        );
+    }
+
+    inline Mat4 RotationY(float radians)
+    {
+        const float sina = std::sin(radians);
+        const float cosa = std::cos(radians);
+
+        return mat::Make<float, 4, 4>(
+             cosa, 0.0f, sina, 0.0f,
+             0.0f, 1.0f, 0.0f, 0.0f,
+            -sina, 0.0f, cosa, 0.0f,
+             0.0f, 0.0f, 0.0f, 1.0f
+        );
+    }
+    
+    inline Mat4 RotateEuler(float x, float y, float z)
+    {
+        return RotationZ(z) * RotationY(y) * RotationX(x);
+    }
+
+    inline Mat4 TRS(const Vec3& translation, const Vec3& rotation, const Vec3& scale)
+    {
+        return Translation(translation) * RotateEuler(rotation.X, rotation.Y, rotation.Z) * Scale(scale);
+    }
 }

@@ -13,6 +13,8 @@ FetchContent_MakeAvailable(googletest)
 add_executable(engine_tests
   vector_test.cpp
   matrix_test.cpp
+  quat_test.cpp
+  math_tranforms.cpp
 )
 
 target_link_libraries(engine_tests PRIVATE

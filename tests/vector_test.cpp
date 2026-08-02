@@ -353,12 +353,12 @@ TEST(VectorLengthTest, SquaredMatchesLengthTimesLength)
     EXPECT_FLOAT_EQ(Length(v) * Length(v), LengthSquared(v));
 }
 
-TEST(VectorLengthTest, SquaredWidensIntegerAccumulator)
+TEST(VectorLengthTest, SquaredKeepsElementType)
 {
-    auto v = Fill<int32, 2>(100000);
+    auto v = Fill<int32, 2>(30000);
 
-    EXPECT_TRUE((std::is_same_v<decltype(LengthSquared(v)), int64>));
-    EXPECT_EQ(20000000000LL, LengthSquared(v));
+    EXPECT_TRUE((std::is_same_v<decltype(LengthSquared(v)), int32>));
+    EXPECT_EQ(1800000000, LengthSquared(v));
 }
 
 TEST(VectorDotTest, ComputesSumOfProducts)
@@ -386,12 +386,17 @@ TEST(VectorDotTest, SelfDotEqualsLengthSquared)
     EXPECT_EQ(LengthSquared(v), Dot(v, v));
 }
 
-TEST(VectorDotTest, WidensIntegerAccumulator)
+TEST(VectorDotTest, KeepsElementType)
 {
-    auto v = Fill<int32, 2>(100000);
+    auto v = Fill<int32, 2>(30000);
 
-    EXPECT_TRUE((std::is_same_v<decltype(Dot(v, v)), int64>));
-    EXPECT_EQ(20000000000LL, Dot(v, v));
+    EXPECT_TRUE((std::is_same_v<decltype(Dot(v, v)), int32>));
+    EXPECT_EQ(1800000000, Dot(v, v));
+
+    auto wide = Fill<int64, 2>(100000);
+
+    EXPECT_TRUE((std::is_same_v<decltype(Dot(wide, wide)), int64>));
+    EXPECT_EQ(20000000000LL, Dot(wide, wide));
 }
 
 TEST(VectorCrossTest, TwoDimensionalReturnsScalar)
@@ -399,7 +404,7 @@ TEST(VectorCrossTest, TwoDimensionalReturnsScalar)
     auto a = Make<int>(1, 0);
     auto b = Make<int>(0, 1);
 
-    EXPECT_TRUE((std::is_same_v<decltype(Cross(a, b)), int64>));
+    EXPECT_TRUE((std::is_same_v<decltype(Cross(a, b)), int>));
     EXPECT_EQ(1, Cross(a, b));
     EXPECT_EQ(-1, Cross(b, a));
 }
@@ -499,12 +504,13 @@ TEST(VectorDistanceTest, IntegerOverloadAvoidsIntermediateOverflow)
     EXPECT_DOUBLE_EQ(4000000000.0, Distance(a, b));
 }
 
-TEST(VectorDistanceTest, SquaredWidensIntegerAccumulator)
+TEST(VectorDistanceTest, SquaredKeepsElementType)
 {
     auto a = Zero<int32, 2>;
-    auto b = Fill<int32, 2>(100000);
+    auto b = Fill<int32, 2>(30000);
 
-    EXPECT_EQ(20000000000LL, DistanceSquared(a, b));
+    EXPECT_TRUE((std::is_same_v<decltype(DistanceSquared(a, b)), int32>));
+    EXPECT_EQ(1800000000, DistanceSquared(a, b));
 }
 
 TEST(VectorNormalizeTest, ProducesUnitLength)

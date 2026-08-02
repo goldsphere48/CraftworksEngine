@@ -168,199 +168,6 @@ namespace cw::math
 
     template<CScalar T>
     using LengthResultT = std::conditional_t<CFloating<T>, T, double>;
-
-    template<CScalar T, usize N>
-    constexpr LengthResultT<T> Length(const Vector<T, N>& vector)
-    {
-        double result = 0.0;
-
-        for (usize i = 0; i < N; ++i)
-        {
-            const double value = static_cast<double>(vector.Data[i]);
-
-            result += value * value;
-        }
-
-        return static_cast<LengthResultT<T>>(std::sqrt(result));
-    }
-
-    template<CScalar T, usize N>
-    constexpr AccumulatorT<T> LengthSquared(const Vector<T, N>& vector)
-    {
-        using Accumulator = AccumulatorT<T>;
-        Accumulator result{};
-
-        for (usize i = 0; i < N; ++i)
-        {
-            const Accumulator value = static_cast<Accumulator>(vector.Data[i]);
-
-            result += value * value;
-        }
-
-        return result;
-    }
-
-    template<CFloating T, usize N>
-    constexpr auto Distance(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
-    {
-        return Length(rhs - lhs);
-    }
-
-    template<CInteger T, usize N>
-    constexpr double Distance(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
-    {
-        double result{};
-
-        for (usize i = 0; i < N; ++i)
-        {
-            const double difference =
-                static_cast<double>(rhs.Data[i]) - static_cast<double>(lhs.Data[i]);
-
-            result += difference * difference;
-        }
-
-        return std::sqrt(result);
-    }
-
-    template<CFloating T, usize N>
-    constexpr auto DistanceSquared(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
-    {
-        return LengthSquared(rhs - lhs);
-    }
-
-    template<CInteger T, usize N>
-    constexpr AccumulatorT<T> DistanceSquared(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
-    {
-        using Accumulator = AccumulatorT<T>;
-
-        Accumulator result{};
-
-        for (usize i = 0; i < N; ++i)
-        {
-            const Accumulator difference =
-                static_cast<Accumulator>(rhs.Data[i]) - static_cast<Accumulator>(lhs.Data[i]);
-
-            result += difference * difference;
-        }
-
-        return result;
-    }
-
-    template<CScalar T, usize N>
-    constexpr Vector<float, N> Normalize(const Vector<T, N>& vector)
-    {
-        double length = Length(vector);
-
-        CW_ASSERT(length != 0.0);
-
-        Vector<float, N> result{};
-        for (usize i = 0; i < N; ++i)
-        {
-            result.Data[i] = static_cast<float>(vector.Data[i]) / length;
-        }
-
-        return result;
-    }
-
-    template<CScalar T, usize N>
-    constexpr AccumulatorT<T> Dot(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
-    {
-        using Result = AccumulatorT<T>;
-
-        Result result = 0;
-
-        for (usize i = 0; i < N; ++i)
-        {
-            result += static_cast<Result>(lhs.Data[i]) * static_cast<Result>(rhs.Data[i]);
-        }
-
-        return result;
-    }
-
-    template<CScalar T>
-    constexpr AccumulatorT<T> Cross(const Vector<T, 2>& lhs, const Vector<T, 2>& rhs)
-    {
-        using R = AccumulatorT<T>;
-
-        const R ax = static_cast<R>(lhs.X);
-        const R ay = static_cast<R>(lhs.Y);
-        const R bx = static_cast<R>(rhs.X);
-        const R by = static_cast<R>(rhs.Y);
-
-        return ax * by - ay * bx;
-    }
-
-    template<CScalar T>
-    constexpr Vector<AccumulatorT<T>, 3> Cross(const Vector<T, 3>& lhs, const Vector<T, 3>& rhs)
-    {
-        using R = AccumulatorT<T>;
-
-        const R ax = static_cast<R>(lhs.X);
-        const R ay = static_cast<R>(lhs.Y);
-        const R az = static_cast<R>(lhs.Z);
-
-        const R bx = static_cast<R>(rhs.X);
-        const R by = static_cast<R>(rhs.Y);
-        const R bz = static_cast<R>(rhs.Z);
-
-        return Vector<R, 3>{ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx};
-    }
-
-    template<CScalar T>
-    constexpr Vector<T, 2> PerpCCW(const Vector<T, 2>& vector)
-    {
-        return {-vector.Y, vector.X};
-    }
-
-    template<CScalar T>
-    constexpr Vector<T, 2> PerpCW(const Vector<T, 2>& vector)
-    {
-        return {vector.Y, -vector.X};
-    }
-
-    template<CFloating T, usize N>
-    constexpr bool NearlyEqual(
-        const Vector<T, N>& lhs, const Vector<T, N>& rhs, T tolerance = Epsilon<T>
-    )
-    {
-        for (usize i = 0; i < N; ++i)
-        {
-            if (!NearlyEqual(lhs.Data[i], rhs.Data[i], tolerance))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    template<CInteger T, usize N>
-    constexpr bool NearlyEqual(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
-    {
-        for (usize i = 0; i < N; ++i)
-        {
-            if (lhs.Data[i] != rhs.Data[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    template<CFloating T, usize N>
-    constexpr bool NearlyZero(const Vector<T, N>& vector, T tolerance = Epsilon<T>)
-    {
-        for (usize i = 0; i < N; ++i)
-        {
-            if (!NearlyZero(vector.Data[i], tolerance))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 }
 
 namespace cw::math::vec
@@ -413,6 +220,160 @@ namespace cw::math::vec
 
     template<CScalar T, usize N>
     requires(N >= 4) constexpr Vector<T, N> UnitW = Axis<T, N>(3, T{1});
+
+    template<CScalar T, usize N>
+    constexpr LengthResultT<T> Length(const Vector<T, N>& vector)
+    {
+        double result = 0.0;
+
+        for (usize i = 0; i < N; ++i)
+        {
+            const double value = static_cast<double>(vector.Data[i]);
+
+            result += value * value;
+        }
+
+        return static_cast<LengthResultT<T>>(std::sqrt(result));
+    }
+
+    template<CScalar T, usize N>
+    constexpr T LengthSquared(const Vector<T, N>& vector)
+    {
+        using Accumulator = AccumulatorT<T>;
+        Accumulator result{};
+
+        for (usize i = 0; i < N; ++i)
+        {
+            const Accumulator value = static_cast<Accumulator>(vector.Data[i]);
+
+            result += value * value;
+        }
+
+        return static_cast<T>(result);
+    }
+
+    template<CFloating T, usize N>
+    constexpr auto Distance(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
+    {
+        return Length(rhs - lhs);
+    }
+
+    template<CInteger T, usize N>
+    constexpr double Distance(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
+    {
+        double result{};
+
+        for (usize i = 0; i < N; ++i)
+        {
+            const double difference =
+                static_cast<double>(rhs.Data[i]) - static_cast<double>(lhs.Data[i]);
+
+            result += difference * difference;
+        }
+
+        return std::sqrt(result);
+    }
+
+    template<CFloating T, usize N>
+    constexpr auto DistanceSquared(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
+    {
+        return LengthSquared(rhs - lhs);
+    }
+
+    template<CInteger T, usize N>
+    constexpr T DistanceSquared(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
+    {
+        using Accumulator = AccumulatorT<T>;
+
+        Accumulator result{};
+
+        for (usize i = 0; i < N; ++i)
+        {
+            const Accumulator difference =
+                static_cast<Accumulator>(rhs.Data[i]) - static_cast<Accumulator>(lhs.Data[i]);
+
+            result += difference * difference;
+        }
+
+        return static_cast<T>(result);
+    }
+
+    template<CScalar T, usize N>
+    constexpr Vector<float, N> Normalize(const Vector<T, N>& vector)
+    {
+        const double length = static_cast<double>(Length(vector));
+
+        CW_ASSERT(length != 0.0);
+
+        Vector<float, N> result{};
+        for (usize i = 0; i < N; ++i)
+        {
+            result.Data[i] = static_cast<float>(static_cast<double>(vector.Data[i]) / length);
+        }
+
+        return result;
+    }
+
+    template<CScalar T, usize N>
+    constexpr T Dot(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
+    {
+        using Accumulator = AccumulatorT<T>;
+
+        Accumulator result{};
+
+        for (usize i = 0; i < N; ++i)
+        {
+            result +=
+                static_cast<Accumulator>(lhs.Data[i]) * static_cast<Accumulator>(rhs.Data[i]);
+        }
+
+        return static_cast<T>(result);
+    }
+
+    template<CScalar T>
+    constexpr T Cross(const Vector<T, 2>& lhs, const Vector<T, 2>& rhs)
+    {
+        using Accumulator = AccumulatorT<T>;
+
+        const Accumulator ax = static_cast<Accumulator>(lhs.X);
+        const Accumulator ay = static_cast<Accumulator>(lhs.Y);
+        const Accumulator bx = static_cast<Accumulator>(rhs.X);
+        const Accumulator by = static_cast<Accumulator>(rhs.Y);
+
+        return static_cast<T>(ax * by - ay * bx);
+    }
+
+    template<CScalar T>
+    constexpr Vector<T, 3> Cross(const Vector<T, 3>& lhs, const Vector<T, 3>& rhs)
+    {
+        using Accumulator = AccumulatorT<T>;
+
+        const Accumulator ax = static_cast<Accumulator>(lhs.X);
+        const Accumulator ay = static_cast<Accumulator>(lhs.Y);
+        const Accumulator az = static_cast<Accumulator>(lhs.Z);
+
+        const Accumulator bx = static_cast<Accumulator>(rhs.X);
+        const Accumulator by = static_cast<Accumulator>(rhs.Y);
+        const Accumulator bz = static_cast<Accumulator>(rhs.Z);
+
+        return Vector<T, 3>{
+            static_cast<T>(ay * bz - az * by),
+            static_cast<T>(az * bx - ax * bz),
+            static_cast<T>(ax * by - ay * bx)
+        };
+    }
+
+    template<CScalar T>
+    constexpr Vector<T, 2> PerpCCW(const Vector<T, 2>& vector)
+    {
+        return {-vector.Y, vector.X};
+    }
+
+    template<CScalar T>
+    constexpr Vector<T, 2> PerpCW(const Vector<T, 2>& vector)
+    {
+        return {vector.Y, -vector.X};
+    }
 }
 
 namespace cw::math::vec2

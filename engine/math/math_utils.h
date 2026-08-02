@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/concepts.h"
+#include "core/types.h"
 
 #include <limits>
 
@@ -51,5 +52,85 @@ namespace cw::math
     constexpr bool NearlyEqual(T lhs, T rhs)
     {
         return lhs == rhs;
+    }
+
+    template<CScalar T, usize N>
+    requires(N > 0) struct Vector;
+
+    template<CScalar T, usize R, usize C>
+    requires(R > 0 && C > 0) struct Matrix;
+
+    template<CFloating T, usize N>
+    constexpr bool NearlyEqual(
+        const Vector<T, N>& lhs, const Vector<T, N>& rhs, T tolerance = Epsilon<T>
+    )
+    {
+        for (usize i = 0; i < N; ++i)
+        {
+            if (!NearlyEqual(lhs.Data[i], rhs.Data[i], tolerance))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<CInteger T, usize N>
+    constexpr bool NearlyEqual(const Vector<T, N>& lhs, const Vector<T, N>& rhs)
+    {
+        for (usize i = 0; i < N; ++i)
+        {
+            if (lhs.Data[i] != rhs.Data[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<CFloating T, usize N>
+    constexpr bool NearlyZero(const Vector<T, N>& vector, T tolerance = Epsilon<T>)
+    {
+        for (usize i = 0; i < N; ++i)
+        {
+            if (!NearlyZero(vector.Data[i], tolerance))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<CFloating T, usize R, usize C>
+    constexpr bool NearlyEqual(
+        const Matrix<T, R, C>& lhs, const Matrix<T, R, C>& rhs, T tolerance = Epsilon<T>
+    )
+    {
+        for (usize i = 0; i < R * C; ++i)
+        {
+            if (!NearlyEqual(lhs.Data[i], rhs.Data[i], tolerance))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<CInteger T, usize R, usize C>
+    constexpr bool NearlyEqual(const Matrix<T, R, C>& lhs, const Matrix<T, R, C>& rhs)
+    {
+        for (usize i = 0; i < R * C; ++i)
+        {
+            if (lhs.Data[i] != rhs.Data[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
