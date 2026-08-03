@@ -230,19 +230,26 @@ namespace cw::math::quat
 
     constexpr Mat4 ToMat4(const Quaternion& quat)
     {
-        const Mat3 rotation = ToMat3(quat);
+        CW_ASSERT(IsNormalized(quat));
 
-        Mat4 result = mat4::Identity;
+        const float xx = quat.X * quat.X;
+        const float yy = quat.Y * quat.Y;
+        const float zz = quat.Z * quat.Z;
 
-        for (usize row = 0; row < 3; ++row)
-        {
-            for (usize column = 0; column < 3; ++column)
-            {
-                mat::At(result, row, column) = mat::At(rotation, row, column);
-            }
-        }
+        const float xy = quat.X * quat.Y;
+        const float xz = quat.X * quat.Z;
+        const float yz = quat.Y * quat.Z;
 
-        return result;
+        const float wx = quat.W * quat.X;
+        const float wy = quat.W * quat.Y;
+        const float wz = quat.W * quat.Z;
+
+        return mat::Make<float, 4, 4>(
+            1.0f - 2.0f * (yy + zz), 2.0f * (xy - wz),        2.0f * (xz + wy),        0.0f,
+            2.0f * (xy + wz),        1.0f - 2.0f * (xx + zz), 2.0f * (yz - wx),        0.0f,
+            2.0f * (xz - wy),        2.0f * (yz + wx),        1.0f - 2.0f * (xx + yy), 0.0f,
+            0.0f,                    0.0f,                    0.0f,                    1.0f
+        );
     }
 
     inline Quaternion Euler(float x, float y, float z)

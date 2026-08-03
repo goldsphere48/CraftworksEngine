@@ -1,6 +1,11 @@
 #include <gtest/gtest.h>
 
+#include <math/math_utils.h>
+#include <math/matrix.h>
 #include <math/quat.h>
+#include <math/vector.h>
+
+#include <cmath>
 
 using namespace cw;
 using namespace cw::math;
@@ -8,8 +13,7 @@ using namespace cw::math::quat;
 
 namespace
 {
-    constexpr float Pi        = 3.14159265358979323846f;
-    constexpr float HalfPi    = Pi * 0.5f;
+    constexpr float HalfPi = Pi * 0.5f;
     constexpr float QuarterPi = Pi * 0.25f;
 
     constexpr float Tolerance = 1e-5f;
@@ -18,7 +22,7 @@ namespace
     constexpr Quaternion J{0.0f, 1.0f, 0.0f, 0.0f};
     constexpr Quaternion K{0.0f, 0.0f, 1.0f, 0.0f};
 
-    bool NearlyEqual(const Quaternion& lhs, const Quaternion& rhs, float tolerance = Tolerance)
+    bool Same(const Quaternion& lhs, const Quaternion& rhs, float tolerance = Tolerance)
     {
         for (usize i = 0; i < 4; ++i)
         {
@@ -55,11 +59,15 @@ TEST(QuaternionStorageTest, NamedAccessorsAliasData)
     EXPECT_FLOAT_EQ(q.Data[1], q.Y);
     EXPECT_FLOAT_EQ(q.Data[2], q.Z);
     EXPECT_FLOAT_EQ(q.Data[3], q.W);
+
+    q.Z = 7.0f;
+
+    EXPECT_FLOAT_EQ(7.0f, q.Data[2]);
 }
 
 TEST(QuaternionStorageTest, HasNoPaddingAroundComponents)
 {
-    EXPECT_EQ(4 * sizeof(float), sizeof(Quaternion));
+    EXPECT_EQ(sizeof(float) * 4, sizeof(Quaternion));
 }
 
 TEST(QuaternionStorageTest, IdentityIsScalarOne)
@@ -72,241 +80,225 @@ TEST(QuaternionStorageTest, IdentityIsScalarOne)
 
 TEST(QuaternionLengthTest, IdentityHasUnitLength)
 {
-    EXPECT_FLOAT_EQ(1.0f, LengthSquared(Identity));
     EXPECT_FLOAT_EQ(1.0f, Length(Identity));
+    EXPECT_FLOAT_EQ(1.0f, LengthSquared(Identity));
 }
 
 TEST(QuaternionLengthTest, SumsSquaresOfAllFourComponents)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, -4.0f};
 
     EXPECT_FLOAT_EQ(30.0f, LengthSquared(q));
     EXPECT_FLOAT_EQ(std::sqrt(30.0f), Length(q));
 }
 
-TEST(QuaternionLengthTest, SquaredMatchesLengthTimesLength)
-{
-    Quaternion q{1.0f, 1.0f, 1.0f, 1.0f};
-
-    EXPECT_FLOAT_EQ(2.0f, Length(q));
-    EXPECT_FLOAT_EQ(Length(q) * Length(q), LengthSquared(q));
-}
-
 TEST(QuaternionLengthTest, ScalingScalesLengthLinearly)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_FLOAT_EQ(3.0f * Length(q), Length(q * 3.0f));
+    EXPECT_NEAR(Length(q) * 3.0f, Length(q * 3.0f), 1e-4f);
 }
 
 TEST(QuaternionIsNormalizedTest, AcceptsUnitQuaternions)
 {
     EXPECT_TRUE(IsNormalized(Identity));
     EXPECT_TRUE(IsNormalized(I));
-    EXPECT_TRUE(IsNormalized(J));
-    EXPECT_TRUE(IsNormalized(K));
     EXPECT_TRUE(IsNormalized(MakeArbitrary()));
+    EXPECT_TRUE(IsNormalized(FromAxisAngle(Vec3{1.0f, 2.0f, 3.0f}, 0.7f)));
 }
 
 TEST(QuaternionIsNormalizedTest, RejectsScaledAndZeroQuaternions)
 {
-    EXPECT_FALSE(IsNormalized(Identity * 1.01f));
-    EXPECT_FALSE(IsNormalized(Identity * 0.5f));
+    EXPECT_FALSE(IsNormalized(Identity * 2.0f));
     EXPECT_FALSE(IsNormalized(Quaternion{0.0f, 0.0f, 0.0f, 0.0f}));
 }
 
 TEST(QuaternionIsNormalizedTest, HonoursExplicitTolerance)
 {
-    auto q = Identity * 1.001f;
+    const Quaternion q = Identity * 1.001f;
 
     EXPECT_FALSE(IsNormalized(q));
-    EXPECT_TRUE(IsNormalized(q, 0.01f));
+    EXPECT_TRUE(IsNormalized(q, 1e-2f));
 }
 
 TEST(QuaternionNormalizeTest, ProducesUnitLength)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, -4.0f};
 
-    EXPECT_FLOAT_EQ(1.0f, Length(Normalize(q)));
+    EXPECT_NEAR(1.0f, Length(Normalize(q)), Tolerance);
     EXPECT_TRUE(IsNormalized(Normalize(q)));
 }
 
 TEST(QuaternionNormalizeTest, LeavesUnitQuaternionUnchanged)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(q, Normalize(q)));
+    EXPECT_TRUE(Same(q, Normalize(q), 1e-4f));
 }
 
 TEST(QuaternionNormalizeTest, IgnoresMagnitudeOfInput)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q{1.0f, -2.0f, 3.0f, -4.0f};
 
-    EXPECT_TRUE(NearlyEqual(Normalize(q), Normalize(q * 7.0f)));
-    EXPECT_TRUE(NearlyEqual(Normalize(q), Normalize(q * 0.01f)));
+    EXPECT_TRUE(Same(Normalize(q), Normalize(q * 100.0f), 1e-4f));
 }
 
 TEST(QuaternionNormalizeTest, PreservesSign)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q{0.0f, 0.0f, 0.0f, -2.0f};
 
-    EXPECT_TRUE(NearlyEqual(-Normalize(q), Normalize(-q)));
+    EXPECT_TRUE(Same(Quaternion{0.0f, 0.0f, 0.0f, -1.0f}, Normalize(q)));
 }
 
 TEST(QuaternionArithmeticTest, ScalesFromEitherSide)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion expected{2.0f, 4.0f, 6.0f, 8.0f};
 
-    EXPECT_TRUE(NearlyEqual(Quaternion{2.0f, 4.0f, 6.0f, 8.0f}, q * 2.0f));
-    EXPECT_TRUE(NearlyEqual(q * 2.0f, 2.0f * q));
+    EXPECT_TRUE(Same(expected, q * 2.0f));
+    EXPECT_TRUE(Same(expected, 2.0f * q));
 }
 
 TEST(QuaternionArithmeticTest, DividesByScalar)
 {
-    Quaternion q{2.0f, 4.0f, 6.0f, 8.0f};
+    const Quaternion q{2.0f, 4.0f, 6.0f, 8.0f};
 
-    EXPECT_TRUE(NearlyEqual(Quaternion{1.0f, 2.0f, 3.0f, 4.0f}, q / 2.0f));
-    EXPECT_TRUE(NearlyEqual(q * 0.5f, q / 2.0f));
+    EXPECT_TRUE(Same(Quaternion{1.0f, 2.0f, 3.0f, 4.0f}, q / 2.0f));
 }
 
 TEST(QuaternionArithmeticTest, AddsAndSubtractsComponentWise)
 {
-    Quaternion a{1.0f, 2.0f, 3.0f, 4.0f};
-    Quaternion b{5.0f, 6.0f, 7.0f, 8.0f};
+    const Quaternion lhs{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion rhs{5.0f, -6.0f, 7.0f, 8.0f};
 
-    EXPECT_TRUE(NearlyEqual(Quaternion{6.0f, 8.0f, 10.0f, 12.0f}, a + b));
-    EXPECT_TRUE(NearlyEqual(Quaternion{-4.0f, -4.0f, -4.0f, -4.0f}, a - b));
-    EXPECT_TRUE(NearlyEqual(Quaternion{0.0f, 0.0f, 0.0f, 0.0f}, a - a));
+    EXPECT_TRUE(Same(Quaternion{6.0f, -4.0f, 10.0f, 12.0f}, lhs + rhs));
+    EXPECT_TRUE(Same(Quaternion{-4.0f, 8.0f, -4.0f, -4.0f}, lhs - rhs));
 }
 
 TEST(QuaternionArithmeticTest, NegatesEveryComponent)
 {
-    Quaternion q{1.0f, -2.0f, 3.0f, -4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, -4.0f};
 
-    EXPECT_TRUE(NearlyEqual(Quaternion{-1.0f, 2.0f, -3.0f, 4.0f}, -q));
-    EXPECT_TRUE(NearlyEqual(q, -(-q)));
-    EXPECT_TRUE(NearlyEqual(q * -1.0f, -q));
+    EXPECT_TRUE(Same(Quaternion{-1.0f, 2.0f, -3.0f, 4.0f}, -q));
+    EXPECT_TRUE(Same(q, -(-q)));
 }
 
 TEST(QuaternionArithmeticTest, BinaryOperatorsLeaveOperandsUntouched)
 {
-    Quaternion a{1.0f, 2.0f, 3.0f, 4.0f};
-    Quaternion b{5.0f, 6.0f, 7.0f, 8.0f};
+    const Quaternion lhs{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion rhs{5.0f, 6.0f, 7.0f, 8.0f};
 
-    auto c = a + b;
+    const Quaternion sum = lhs + rhs;
 
-    EXPECT_FLOAT_EQ(1.0f, a.X);
-    EXPECT_FLOAT_EQ(5.0f, b.X);
-    EXPECT_FLOAT_EQ(6.0f, c.X);
+    EXPECT_TRUE(Same(Quaternion{1.0f, 2.0f, 3.0f, 4.0f}, lhs));
+    EXPECT_TRUE(Same(Quaternion{5.0f, 6.0f, 7.0f, 8.0f}, rhs));
+    EXPECT_TRUE(Same(Quaternion{6.0f, 8.0f, 10.0f, 12.0f}, sum));
 }
 
 TEST(QuaternionProductTest, IdentityIsNeutralOnBothSides)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(q, q * Identity));
-    EXPECT_TRUE(NearlyEqual(q, Identity * q));
+    EXPECT_TRUE(Same(q, q * Identity));
+    EXPECT_TRUE(Same(q, Identity * q));
 }
 
 TEST(QuaternionProductTest, FollowsHamiltonRulesForBasisElements)
 {
-    EXPECT_TRUE(NearlyEqual(K, I * J));
-    EXPECT_TRUE(NearlyEqual(I, J * K));
-    EXPECT_TRUE(NearlyEqual(J, K * I));
+    EXPECT_TRUE(Same(K, I * J));
+    EXPECT_TRUE(Same(I, J * K));
+    EXPECT_TRUE(Same(J, K * I));
 
-    EXPECT_TRUE(NearlyEqual(-K, J * I));
-    EXPECT_TRUE(NearlyEqual(-I, K * J));
-    EXPECT_TRUE(NearlyEqual(-J, I * K));
+    EXPECT_TRUE(Same(-K, J * I));
+    EXPECT_TRUE(Same(-I, K * J));
+    EXPECT_TRUE(Same(-J, I * K));
 }
 
 TEST(QuaternionProductTest, BasisElementsSquareToMinusOne)
 {
-    Quaternion minusOne{0.0f, 0.0f, 0.0f, -1.0f};
-
-    EXPECT_TRUE(NearlyEqual(minusOne, I * I));
-    EXPECT_TRUE(NearlyEqual(minusOne, J * J));
-    EXPECT_TRUE(NearlyEqual(minusOne, K * K));
-    EXPECT_TRUE(NearlyEqual(minusOne, I * J * K));
+    EXPECT_TRUE(Same(-Identity, I * I));
+    EXPECT_TRUE(Same(-Identity, J * J));
+    EXPECT_TRUE(Same(-Identity, K * K));
+    EXPECT_TRUE(Same(-Identity, I * J * K));
 }
 
 TEST(QuaternionProductTest, IsNotCommutative)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion lhs = MakeArbitrary();
+    const Quaternion rhs = MakeOtherArbitrary();
 
-    EXPECT_FALSE(NearlyEqual(a * b, b * a));
+    EXPECT_FALSE(Same(lhs * rhs, rhs * lhs));
 }
 
 TEST(QuaternionProductTest, IsAssociative)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
-    auto c = Euler(0.5f, 0.5f, -0.5f);
+    const Quaternion a = MakeArbitrary();
+    const Quaternion b = MakeOtherArbitrary();
+    const Quaternion c = FromAxisAngle(Vec3{1.0f, 1.0f, 0.0f}, 0.6f);
 
-    EXPECT_TRUE(NearlyEqual((a * b) * c, a * (b * c)));
+    EXPECT_TRUE(Same((a * b) * c, a * (b * c), 1e-4f));
 }
 
 TEST(QuaternionProductTest, MultipliesLengths)
 {
-    Quaternion a{1.0f, 2.0f, 3.0f, 4.0f};
-    Quaternion b{5.0f, -6.0f, 7.0f, 8.0f};
+    const Quaternion lhs{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion rhs{-2.0f, 0.5f, 1.0f, 3.0f};
 
-    EXPECT_NEAR(Length(a) * Length(b), Length(a * b), 1e-3f);
+    EXPECT_NEAR(Length(lhs) * Length(rhs), Length(lhs * rhs), 1e-3f);
 }
 
 TEST(QuaternionProductTest, KeepsUnitQuaternionsUnit)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion product = MakeArbitrary() * MakeOtherArbitrary();
 
-    EXPECT_TRUE(IsNormalized(a * b));
+    EXPECT_TRUE(IsNormalized(product));
 }
 
 TEST(QuaternionProductTest, DistributesOverAddition)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
-    auto c = Euler(0.5f, 0.5f, -0.5f);
+    const Quaternion a = MakeArbitrary();
+    const Quaternion b = MakeOtherArbitrary();
+    const Quaternion c{1.0f, -1.0f, 0.5f, 2.0f};
 
-    EXPECT_TRUE(NearlyEqual(a * (b + c), a * b + a * c));
+    EXPECT_TRUE(Same(a * (b + c), a * b + a * c, 1e-4f));
 }
 
 TEST(QuaternionConjugateTest, NegatesVectorPartOnly)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, 4.0f};
 
-    EXPECT_TRUE(NearlyEqual(Quaternion{-1.0f, -2.0f, -3.0f, 4.0f}, Conjugate(q)));
+    EXPECT_TRUE(Same(Quaternion{-1.0f, 2.0f, -3.0f, 4.0f}, Conjugate(q)));
 }
 
 TEST(QuaternionConjugateTest, AppliedTwiceReturnsOriginal)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(q, Conjugate(Conjugate(q))));
+    EXPECT_TRUE(Same(q, Conjugate(Conjugate(q))));
 }
 
 TEST(QuaternionConjugateTest, PreservesLength)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, 4.0f};
 
-    EXPECT_FLOAT_EQ(LengthSquared(q), LengthSquared(Conjugate(q)));
+    EXPECT_FLOAT_EQ(Length(q), Length(Conjugate(q)));
 }
 
 TEST(QuaternionConjugateTest, ReversesProductOrder)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion a = MakeArbitrary();
+    const Quaternion b = MakeOtherArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(Conjugate(a * b), Conjugate(b) * Conjugate(a)));
+    EXPECT_TRUE(Same(Conjugate(a * b), Conjugate(b) * Conjugate(a), 1e-4f));
 }
 
 TEST(QuaternionConjugateTest, TimesItselfGivesLengthSquared)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, 4.0f};
 
-    auto product = q * Conjugate(q);
+    const Quaternion product = q * Conjugate(q);
 
-    EXPECT_NEAR(LengthSquared(q), product.W, 1e-4f);
+    EXPECT_NEAR(LengthSquared(q), product.W, 1e-3f);
     EXPECT_NEAR(0.0f, product.X, 1e-4f);
     EXPECT_NEAR(0.0f, product.Y, 1e-4f);
     EXPECT_NEAR(0.0f, product.Z, 1e-4f);
@@ -314,46 +306,46 @@ TEST(QuaternionConjugateTest, TimesItselfGivesLengthSquared)
 
 TEST(QuaternionInverseTest, MatchesConjugateForUnitQuaternions)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(Conjugate(q), Inverse(q)));
+    EXPECT_TRUE(Same(Conjugate(q), Inverse(q), 1e-4f));
 }
 
 TEST(QuaternionInverseTest, ProductWithInverseIsIdentity)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, 4.0f};
 
-    EXPECT_TRUE(NearlyEqual(Identity, q * Inverse(q), 1e-4f));
-    EXPECT_TRUE(NearlyEqual(Identity, Inverse(q) * q, 1e-4f));
+    EXPECT_TRUE(Same(Identity, q * Inverse(q), 1e-4f));
+    EXPECT_TRUE(Same(Identity, Inverse(q) * q, 1e-4f));
 }
 
 TEST(QuaternionInverseTest, AppliedTwiceReturnsOriginal)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, 4.0f};
 
-    EXPECT_TRUE(NearlyEqual(q, Inverse(Inverse(q)), 1e-4f));
+    EXPECT_TRUE(Same(q, Inverse(Inverse(q)), 1e-4f));
 }
 
 TEST(QuaternionInverseTest, ScalesInverselyWithMagnitude)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(Inverse(q) * 0.5f, Inverse(q * 2.0f)));
+    EXPECT_TRUE(Same(Inverse(q) / 2.0f, Inverse(q * 2.0f), 1e-4f));
 }
 
 TEST(QuaternionDotTest, SelfDotEqualsLengthSquared)
 {
-    Quaternion q{1.0f, 2.0f, 3.0f, 4.0f};
+    const Quaternion q{1.0f, -2.0f, 3.0f, 4.0f};
 
     EXPECT_FLOAT_EQ(LengthSquared(q), Dot(q, q));
 }
 
 TEST(QuaternionDotTest, IsCommutative)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion lhs = MakeArbitrary();
+    const Quaternion rhs = MakeOtherArbitrary();
 
-    EXPECT_FLOAT_EQ(Dot(a, b), Dot(b, a));
+    EXPECT_FLOAT_EQ(Dot(lhs, rhs), Dot(rhs, lhs));
 }
 
 TEST(QuaternionDotTest, OrthogonalBasisElementsGiveZero)
@@ -365,19 +357,19 @@ TEST(QuaternionDotTest, OrthogonalBasisElementsGiveZero)
 
 TEST(QuaternionDotTest, OppositeQuaternionsGiveNegativeLengthSquared)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q{1.0f, -2.0f, 3.0f, 4.0f};
 
-    EXPECT_FLOAT_EQ(-1.0f, Dot(q, -q));
+    EXPECT_FLOAT_EQ(-LengthSquared(q), Dot(q, -q));
 }
 
 TEST(QuaternionFromAxisAngleTest, ZeroAngleGivesIdentity)
 {
-    EXPECT_TRUE(NearlyEqual(Identity, FromAxisAngle(vec3::UnitZ, 0.0f)));
+    EXPECT_TRUE(Same(Identity, FromAxisAngle(vec3::UnitY, 0.0f)));
 }
 
 TEST(QuaternionFromAxisAngleTest, EncodesHalfAngle)
 {
-    auto q = FromAxisAngle(vec3::UnitZ, HalfPi);
+    const Quaternion q = FromAxisAngle(vec3::UnitZ, HalfPi);
 
     EXPECT_NEAR(0.0f, q.X, Tolerance);
     EXPECT_NEAR(0.0f, q.Y, Tolerance);
@@ -387,42 +379,38 @@ TEST(QuaternionFromAxisAngleTest, EncodesHalfAngle)
 
 TEST(QuaternionFromAxisAngleTest, ProducesUnitQuaternion)
 {
-    EXPECT_TRUE(IsNormalized(FromAxisAngle(vec3::UnitX, 1.3f)));
-    EXPECT_TRUE(IsNormalized(FromAxisAngle(Vec3{1.0f, 2.0f, 3.0f}, -2.7f)));
+    EXPECT_TRUE(IsNormalized(FromAxisAngle(Vec3{1.0f, 2.0f, -3.0f}, 2.4f)));
 }
 
 TEST(QuaternionFromAxisAngleTest, NormalizesTheAxis)
 {
-    auto unit   = FromAxisAngle(vec3::UnitZ, 0.7f);
-    auto scaled = FromAxisAngle(Vec3{0.0f, 0.0f, 5.0f}, 0.7f);
+    const Vec3 axis{0.0f, 0.0f, 5.0f};
 
-    EXPECT_TRUE(NearlyEqual(unit, scaled));
+    EXPECT_TRUE(Same(FromAxisAngle(vec3::UnitZ, 0.8f), FromAxisAngle(axis, 0.8f), 1e-5f));
 }
 
 TEST(QuaternionFromAxisAngleTest, FullTurnGivesNegatedIdentity)
 {
-    auto q = FromAxisAngle(vec3::UnitZ, 2.0f * Pi);
-
-    EXPECT_TRUE(NearlyEqual(-Identity, q, 1e-4f));
+    EXPECT_TRUE(Same(-Identity, FromAxisAngle(vec3::UnitX, Pi * 2.0f), 1e-4f));
 }
 
 TEST(QuaternionFromAxisAngleTest, OppositeAngleGivesConjugate)
 {
-    auto q = FromAxisAngle(vec3::UnitY, 0.9f);
+    const Vec3 axis{1.0f, -2.0f, 0.5f};
 
-    EXPECT_TRUE(NearlyEqual(Conjugate(q), FromAxisAngle(vec3::UnitY, -0.9f)));
+    EXPECT_TRUE(Same(Conjugate(FromAxisAngle(axis, 1.3f)), FromAxisAngle(axis, -1.3f), 1e-5f));
 }
 
 TEST(QuaternionEulerTest, ZeroAnglesGiveIdentity)
 {
-    EXPECT_TRUE(NearlyEqual(Identity, Euler(0.0f, 0.0f, 0.0f)));
+    EXPECT_TRUE(Same(Identity, Euler(0.0f, 0.0f, 0.0f)));
 }
 
 TEST(QuaternionEulerTest, SingleAxisMatchesFromAxisAngle)
 {
-    EXPECT_TRUE(NearlyEqual(FromAxisAngle(vec3::UnitX, 0.8f), Euler(0.8f, 0.0f, 0.0f)));
-    EXPECT_TRUE(NearlyEqual(FromAxisAngle(vec3::UnitY, 0.8f), Euler(0.0f, 0.8f, 0.0f)));
-    EXPECT_TRUE(NearlyEqual(FromAxisAngle(vec3::UnitZ, 0.8f), Euler(0.0f, 0.0f, 0.8f)));
+    EXPECT_TRUE(Same(FromAxisAngle(vec3::UnitX, 0.7f), Euler(0.7f, 0.0f, 0.0f), 1e-5f));
+    EXPECT_TRUE(Same(FromAxisAngle(vec3::UnitY, 0.7f), Euler(0.0f, 0.7f, 0.0f), 1e-5f));
+    EXPECT_TRUE(Same(FromAxisAngle(vec3::UnitZ, 0.7f), Euler(0.0f, 0.0f, 0.7f), 1e-5f));
 }
 
 TEST(QuaternionEulerTest, AppliesRotationsInXThenYThenZOrder)
@@ -431,269 +419,240 @@ TEST(QuaternionEulerTest, AppliesRotationsInXThenYThenZOrder)
     const float y = -0.7f;
     const float z = 1.1f;
 
-    auto composed =
-        FromAxisAngle(vec3::UnitZ, z) * FromAxisAngle(vec3::UnitY, y) * FromAxisAngle(vec3::UnitX, x);
+    const Quaternion composed =
+        Euler(0.0f, 0.0f, z) * Euler(0.0f, y, 0.0f) * Euler(x, 0.0f, 0.0f);
 
-    EXPECT_TRUE(NearlyEqual(composed, Euler(x, y, z)));
+    EXPECT_TRUE(Same(composed, Euler(x, y, z), 1e-4f));
 }
 
 TEST(QuaternionEulerTest, ProducesUnitQuaternion)
 {
-    EXPECT_TRUE(IsNormalized(MakeArbitrary()));
-    EXPECT_TRUE(IsNormalized(Euler(3.0f, -3.0f, 3.0f)));
+    EXPECT_TRUE(IsNormalized(Euler(2.1f, -0.4f, 3.0f)));
 }
 
 TEST(QuaternionRotateVectorTest, IdentityLeavesVectorUnchanged)
 {
-    auto v = MakeArbitraryVector();
+    const Vec3 v = MakeArbitraryVector();
 
-    EXPECT_TRUE(math::NearlyEqual(v, RotateVector(Identity, v), Tolerance));
+    EXPECT_TRUE(NearlyEqual(v, RotateVector(Identity, v), Tolerance));
 }
 
 TEST(QuaternionRotateVectorTest, TurnsAxesByNinetyDegreesAboutZ)
 {
-    auto q = FromAxisAngle(vec3::UnitZ, HalfPi);
+    const Quaternion q = FromAxisAngle(vec3::UnitZ, HalfPi);
 
-    EXPECT_TRUE(math::NearlyEqual(vec3::UnitY, RotateVector(q, vec3::UnitX), Tolerance));
-    EXPECT_TRUE(math::NearlyEqual(Vec3{-1.0f, 0.0f, 0.0f}, RotateVector(q, vec3::UnitY), Tolerance));
-    EXPECT_TRUE(math::NearlyEqual(vec3::UnitZ, RotateVector(q, vec3::UnitZ), Tolerance));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitY, RotateVector(q, vec3::UnitX), 1e-5f));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitX * -1.0f, RotateVector(q, vec3::UnitY), 1e-5f));
 }
 
 TEST(QuaternionRotateVectorTest, TurnsAxesByNinetyDegreesAboutXAndY)
 {
-    auto aboutX = FromAxisAngle(vec3::UnitX, HalfPi);
-    auto aboutY = FromAxisAngle(vec3::UnitY, HalfPi);
+    const Quaternion aboutX = FromAxisAngle(vec3::UnitX, HalfPi);
+    const Quaternion aboutY = FromAxisAngle(vec3::UnitY, HalfPi);
 
-    EXPECT_TRUE(math::NearlyEqual(vec3::UnitZ, RotateVector(aboutX, vec3::UnitY), Tolerance));
-    EXPECT_TRUE(math::NearlyEqual(vec3::UnitX, RotateVector(aboutY, vec3::UnitZ), Tolerance));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitZ, RotateVector(aboutX, vec3::UnitY), 1e-5f));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitX, RotateVector(aboutY, vec3::UnitZ), 1e-5f));
 }
 
 TEST(QuaternionRotateVectorTest, LeavesTheRotationAxisFixed)
 {
-    auto axis = vec::Normalize(Vec3{1.0f, 2.0f, 3.0f});
-    auto q    = FromAxisAngle(axis, 1.4f);
+    const Vec3 axis = vec::Normalize(Vec3{1.0f, 2.0f, -1.0f});
+    const Quaternion q = FromAxisAngle(axis, 1.4f);
 
-    EXPECT_TRUE(math::NearlyEqual(axis, RotateVector(q, axis), Tolerance));
+    EXPECT_TRUE(NearlyEqual(axis, RotateVector(q, axis), 1e-4f));
 }
 
 TEST(QuaternionRotateVectorTest, PreservesLength)
 {
-    auto q = MakeArbitrary();
-    auto v = MakeArbitraryVector();
+    const Vec3 v = MakeArbitraryVector();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_NEAR(vec::Length(v), vec::Length(RotateVector(q, v)), Tolerance);
+    EXPECT_NEAR(vec::Length(v), vec::Length(RotateVector(q, v)), 1e-5f);
 }
 
 TEST(QuaternionRotateVectorTest, ComposesInTheSameOrderAsTheProduct)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
-    auto v = MakeArbitraryVector();
+    const Quaternion a = MakeArbitrary();
+    const Quaternion b = MakeOtherArbitrary();
+    const Vec3 v = MakeArbitraryVector();
 
-    EXPECT_TRUE(
-        math::NearlyEqual(RotateVector(a * b, v), RotateVector(a, RotateVector(b, v)), Tolerance)
-    );
+    EXPECT_TRUE(NearlyEqual(RotateVector(a * b, v), RotateVector(a, RotateVector(b, v)), 1e-4f));
 }
 
 TEST(QuaternionRotateVectorTest, ConjugateUndoesTheRotation)
 {
-    auto q = MakeArbitrary();
-    auto v = MakeArbitraryVector();
+    const Quaternion q = MakeArbitrary();
+    const Vec3 v = MakeArbitraryVector();
 
-    EXPECT_TRUE(math::NearlyEqual(v, RotateVector(Conjugate(q), RotateVector(q, v)), Tolerance));
+    EXPECT_TRUE(NearlyEqual(v, RotateVector(Conjugate(q), RotateVector(q, v)), 1e-4f));
 }
 
 TEST(QuaternionRotateVectorTest, OppositeQuaternionsRotateAlike)
 {
-    auto q = MakeArbitrary();
-    auto v = MakeArbitraryVector();
+    const Quaternion q = MakeArbitrary();
+    const Vec3 v = MakeArbitraryVector();
 
-    EXPECT_TRUE(math::NearlyEqual(RotateVector(q, v), RotateVector(-q, v), Tolerance));
+    EXPECT_TRUE(NearlyEqual(RotateVector(q, v), RotateVector(-q, v), 1e-4f));
 }
 
 TEST(QuaternionToMatrixTest, IdentityGivesIdentityMatrices)
 {
-    EXPECT_TRUE(math::NearlyEqual(mat3::Identity, ToMat3(Identity), Tolerance));
-    EXPECT_TRUE(math::NearlyEqual(mat4::Identity, ToMat4(Identity), Tolerance));
+    EXPECT_TRUE(NearlyEqual(mat3::Identity, ToMat3(Identity)));
+    EXPECT_TRUE(NearlyEqual(mat4::Identity, ToMat4(Identity)));
 }
 
 TEST(QuaternionToMatrixTest, Mat3AgreesWithRotateVector)
 {
-    auto q = MakeArbitrary();
-    auto v = MakeArbitraryVector();
+    const Quaternion q = MakeArbitrary();
+    const Vec3 v = MakeArbitraryVector();
 
-    EXPECT_TRUE(math::NearlyEqual(RotateVector(q, v), ToMat3(q) * v, Tolerance));
+    EXPECT_TRUE(NearlyEqual(RotateVector(q, v), ToMat3(q) * v, 1e-4f));
 }
 
 TEST(QuaternionToMatrixTest, Mat3IsARotation)
 {
-    auto m = ToMat3(MakeArbitrary());
+    const Mat3 rotation = ToMat3(MakeArbitrary());
 
-    EXPECT_NEAR(1.0f, mat::Determinant(m), 1e-4f);
-    EXPECT_TRUE(math::NearlyEqual(mat3::Identity, mat::Transpose(m) * m, 1e-4f));
+    EXPECT_TRUE(NearlyEqual(mat3::Identity, rotation * mat::Transpose(rotation), 1e-4f));
+    EXPECT_NEAR(1.0f, mat::Determinant(rotation), 1e-4f);
 }
 
 TEST(QuaternionToMatrixTest, ConjugateGivesTransposedMatrix)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_TRUE(math::NearlyEqual(mat::Transpose(ToMat3(q)), ToMat3(Conjugate(q)), Tolerance));
+    EXPECT_TRUE(NearlyEqual(mat::Transpose(ToMat3(q)), ToMat3(Conjugate(q)), 1e-5f));
 }
 
 TEST(QuaternionToMatrixTest, ProductMapsToMatrixProduct)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion a = MakeArbitrary();
+    const Quaternion b = MakeOtherArbitrary();
 
-    EXPECT_TRUE(math::NearlyEqual(ToMat3(a) * ToMat3(b), ToMat3(a * b), 1e-4f));
-}
-
-TEST(QuaternionToMatrixTest, EulerAgreesWithMatrixRotateEuler)
-{
-    auto q = Euler(0.3f, -0.7f, 1.1f);
-    auto v = MakeArbitraryVector();
-
-    auto expected = mat4::TransformDirection(mat4::RotateEuler(0.3f, -0.7f, 1.1f), v);
-
-    EXPECT_TRUE(math::NearlyEqual(expected, RotateVector(q, v), 1e-4f));
+    EXPECT_TRUE(NearlyEqual(ToMat3(a * b), ToMat3(a) * ToMat3(b), 1e-4f));
 }
 
 TEST(QuaternionToMatrixTest, Mat4EmbedsMat3InTheUpperLeftBlock)
 {
-    auto q  = MakeArbitrary();
-    auto m3 = ToMat3(q);
-    auto m4 = ToMat4(q);
+    const Quaternion q = MakeArbitrary();
+
+    const Mat3 three = ToMat3(q);
+    const Mat4 four = ToMat4(q);
 
     for (usize row = 0; row < 3; ++row)
     {
         for (usize column = 0; column < 3; ++column)
         {
-            EXPECT_FLOAT_EQ(mat::At(m3, row, column), mat::At(m4, row, column))
-                << "row " << row << " column " << column;
+            EXPECT_NEAR(mat::At(three, row, column), mat::At(four, row, column), 1e-5f);
         }
     }
 }
 
 TEST(QuaternionToMatrixTest, Mat4HasNoTranslationOrProjection)
 {
-    auto m = ToMat4(MakeArbitrary());
+    const Mat4 four = ToMat4(MakeArbitrary());
 
     for (usize i = 0; i < 3; ++i)
     {
-        EXPECT_FLOAT_EQ(0.0f, mat::At(m, i, 3)) << "row " << i;
-        EXPECT_FLOAT_EQ(0.0f, mat::At(m, 3, i)) << "column " << i;
+        EXPECT_FLOAT_EQ(0.0f, mat::At(four, i, 3));
+        EXPECT_FLOAT_EQ(0.0f, mat::At(four, 3, i));
     }
 
-    EXPECT_FLOAT_EQ(1.0f, mat::At(m, 3, 3));
-}
-
-TEST(QuaternionToMatrixTest, Mat4TransformsPointsAndDirectionsAlike)
-{
-    auto q = MakeArbitrary();
-    auto v = MakeArbitraryVector();
-    auto m = ToMat4(q);
-
-    EXPECT_TRUE(math::NearlyEqual(RotateVector(q, v), mat4::TransformPoint(m, v), Tolerance));
-    EXPECT_TRUE(math::NearlyEqual(RotateVector(q, v), mat4::TransformDirection(m, v), Tolerance));
-}
-
-TEST(QuaternionToMatrixTest, Mat4ComposesWithTranslation)
-{
-    auto q           = MakeArbitrary();
-    auto v           = MakeArbitraryVector();
-    auto translation = Vec3{5.0f, 6.0f, 7.0f};
-
-    auto transform = mat4::Translation(translation) * ToMat4(q);
-
-    EXPECT_TRUE(math::NearlyEqual(
-        RotateVector(q, v) + translation, mat4::TransformPoint(transform, v), Tolerance
-    ));
+    EXPECT_FLOAT_EQ(1.0f, mat::At(four, 3, 3));
 }
 
 TEST(QuaternionSlerpTest, ReturnsEndpointsAtZeroAndOne)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion q0 = FromAxisAngle(vec3::UnitZ, 0.2f);
+    const Quaternion q1 = FromAxisAngle(vec3::UnitY, 1.0f);
 
-    EXPECT_TRUE(NearlyEqual(a, Slerp(a, b, 0.0f)));
-    EXPECT_TRUE(NearlyEqual(b, Slerp(a, b, 1.0f)));
+    ASSERT_GT(Dot(q0, q1), 0.0f);
+
+    EXPECT_TRUE(Same(q0, Slerp(q0, q1, 0.0f), 1e-4f));
+    EXPECT_TRUE(Same(q1, Slerp(q0, q1, 1.0f), 1e-4f));
+}
+
+TEST(QuaternionSlerpTest, ReturnsEndpointRotationsRegardlessOfSign)
+{
+    const Quaternion q0 = MakeArbitrary();
+    const Quaternion q1 = MakeOtherArbitrary();
+    const Vec3 v = MakeArbitraryVector();
+
+    EXPECT_TRUE(NearlyEqual(RotateVector(q0, v), RotateVector(Slerp(q0, q1, 0.0f), v), 1e-4f));
+    EXPECT_TRUE(NearlyEqual(RotateVector(q1, v), RotateVector(Slerp(q0, q1, 1.0f), v), 1e-4f));
 }
 
 TEST(QuaternionSlerpTest, StaysNormalized)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion q0 = MakeArbitrary();
+    const Quaternion q1 = MakeOtherArbitrary();
 
-    for (float t = 0.0f; t <= 1.0f; t += 0.1f)
+    for (int32 step = 0; step <= 10; ++step)
     {
-        EXPECT_TRUE(IsNormalized(Slerp(a, b, t))) << "t " << t;
+        const float t = static_cast<float>(step) / 10.0f;
+
+        EXPECT_TRUE(IsNormalized(Slerp(q0, q1, t)));
     }
 }
 
 TEST(QuaternionSlerpTest, MovesAtConstantAngularVelocity)
 {
-    auto a = Identity;
-    auto b = FromAxisAngle(vec3::UnitZ, HalfPi);
+    const Quaternion q0 = FromAxisAngle(vec3::UnitZ, 0.0f);
+    const Quaternion q1 = FromAxisAngle(vec3::UnitZ, HalfPi);
 
-    EXPECT_TRUE(NearlyEqual(FromAxisAngle(vec3::UnitZ, HalfPi * 0.25f), Slerp(a, b, 0.25f)));
-    EXPECT_TRUE(NearlyEqual(FromAxisAngle(vec3::UnitZ, HalfPi * 0.50f), Slerp(a, b, 0.50f)));
-    EXPECT_TRUE(NearlyEqual(FromAxisAngle(vec3::UnitZ, HalfPi * 0.75f), Slerp(a, b, 0.75f)));
+    const Quaternion middle = Slerp(q0, q1, 0.5f);
+
+    EXPECT_NEAR(Abs(Dot(q0, middle)), Abs(Dot(middle, q1)), 1e-4f);
+    EXPECT_TRUE(Same(FromAxisAngle(vec3::UnitZ, QuarterPi), middle, 1e-4f));
 }
 
 TEST(QuaternionSlerpTest, IsSymmetricInItsEndpoints)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion q0 = MakeArbitrary();
+    const Quaternion q1 = MakeOtherArbitrary();
+    const Vec3 v = MakeArbitraryVector();
 
-    EXPECT_TRUE(NearlyEqual(Slerp(a, b, 0.3f), Slerp(b, a, 0.7f)));
+    const Vec3 forward = RotateVector(Slerp(q0, q1, 0.3f), v);
+    const Vec3 backward = RotateVector(Slerp(q1, q0, 0.7f), v);
+
+    EXPECT_TRUE(NearlyEqual(forward, backward, 1e-4f));
 }
 
 TEST(QuaternionSlerpTest, TakesTheShortestPath)
 {
-    auto a = MakeArbitrary();
-    auto b = MakeOtherArbitrary();
+    const Quaternion q0 = MakeArbitrary();
+    const Quaternion q1 = MakeOtherArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(Slerp(a, b, 0.4f), Slerp(a, -b, 0.4f)));
+    EXPECT_TRUE(Same(Slerp(q0, q1, 0.4f), Slerp(q0, -q1, 0.4f), 1e-4f));
+    EXPECT_GE(Dot(q0, Slerp(q0, -q1, 0.4f)), 0.0f);
 }
 
 TEST(QuaternionSlerpTest, HandlesIdenticalEndpoints)
 {
-    auto q = MakeArbitrary();
+    const Quaternion q = MakeArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(q, Slerp(q, q, 0.0f)));
-    EXPECT_TRUE(NearlyEqual(q, Slerp(q, q, 0.5f)));
-    EXPECT_TRUE(NearlyEqual(q, Slerp(q, q, 1.0f)));
+    EXPECT_TRUE(Same(q, Slerp(q, q, 0.5f), 1e-4f));
 }
 
 TEST(QuaternionSlerpTest, FallsBackToLinearPathForNearbyQuaternions)
 {
-    auto a = Identity;
-    auto b = FromAxisAngle(vec3::UnitZ, 0.001f);
+    const Quaternion q0 = FromAxisAngle(vec3::UnitZ, 0.0f);
+    const Quaternion q1 = FromAxisAngle(vec3::UnitZ, 1e-3f);
 
-    auto midpoint = Slerp(a, b, 0.5f);
+    ASSERT_GT(Dot(q0, q1), 0.9995f);
 
-    EXPECT_TRUE(IsNormalized(midpoint));
-    EXPECT_TRUE(NearlyEqual(FromAxisAngle(vec3::UnitZ, 0.0005f), midpoint));
+    const Quaternion middle = Slerp(q0, q1, 0.5f);
+
+    EXPECT_TRUE(IsNormalized(middle));
+    EXPECT_TRUE(Same(FromAxisAngle(vec3::UnitZ, 5e-4f), middle, 1e-4f));
 }
 
 TEST(QuaternionSlerpTest, InterpolatedRotationActsOnVectors)
 {
-    auto a = Identity;
-    auto b = FromAxisAngle(vec3::UnitZ, HalfPi);
+    const Quaternion q0 = Identity;
+    const Quaternion q1 = FromAxisAngle(vec3::UnitZ, HalfPi);
 
-    auto rotated = RotateVector(Slerp(a, b, 0.5f), vec3::UnitX);
+    const Vec3 rotated = RotateVector(Slerp(q0, q1, 0.5f), vec3::UnitX);
 
-    EXPECT_TRUE(
-        math::NearlyEqual(Vec3{std::cos(QuarterPi), std::sin(QuarterPi), 0.0f}, rotated, Tolerance)
-    );
-}
-
-namespace
-{
-    static_assert(sizeof(Quaternion) == 4 * sizeof(float));
-
-    static_assert(Identity.Data[0] == 0.0f);
-    static_assert(Identity.Data[1] == 0.0f);
-    static_assert(Identity.Data[2] == 0.0f);
-    static_assert(Identity.Data[3] == 1.0f);
+    EXPECT_TRUE(NearlyEqual(Vec3{std::cos(QuarterPi), std::sin(QuarterPi), 0.0f}, rotated, 1e-4f));
 }

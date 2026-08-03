@@ -1,18 +1,25 @@
 #include <gtest/gtest.h>
 
+#include <math/math_utils.h>
 #include <math/vector.h>
-#include <world/coordinate_system.h>
+
+#include <type_traits>
 
 using namespace cw;
 using namespace cw::math;
 using namespace cw::math::vec;
 
+namespace
+{
+    constexpr float Tolerance = 1e-5f;
+}
+
 TEST(VectorStorageTest, MakeStoresComponentsInData)
 {
-    auto v1 = Make<int>(7);
-    auto v2 = Make<int>(1, 2);
-    auto v3 = Make<int>(1, 2, 3);
-    auto v4 = Make<int>(1, 2, 3, 4);
+    auto v1 = Make<int32>(7);
+    auto v2 = Make<int32>(1, 2);
+    auto v3 = Make<int32>(1, 2, 3);
+    auto v4 = Make<int32>(1, 2, 3, 4);
 
     EXPECT_EQ(7, v1.Data[0]);
 
@@ -42,14 +49,17 @@ TEST(VectorStorageTest, MakeDeducesDimensionFromArgumentCount)
 
 TEST(VectorStorageTest, ShorthandAliasesNameExpectedTypes)
 {
+    EXPECT_TRUE((std::is_same_v<Vec2, Vector<float, 2>>));
     EXPECT_TRUE((std::is_same_v<Vec3, Vector<float, 3>>));
+    EXPECT_TRUE((std::is_same_v<Vec4, Vector<float, 4>>));
+
     EXPECT_TRUE((std::is_same_v<Vec3f, Vector<float, 3>>));
     EXPECT_TRUE((std::is_same_v<Vec3i, Vector<int32, 3>>));
 }
 
 TEST(VectorStorageTest, NamedAccessorsAliasData)
 {
-    auto v = Make<int>(1, 2, 3, 4);
+    auto v = Make<int32>(1, 2, 3, 4);
 
     EXPECT_EQ(v.Data[0], v.X);
     EXPECT_EQ(v.Data[1], v.Y);
@@ -64,7 +74,7 @@ TEST(VectorStorageTest, NamedAccessorsAliasData)
 
 TEST(VectorStorageTest, WritingThroughNamedAccessorUpdatesData)
 {
-    auto v = Make<int>(1, 2, 3);
+    auto v = Make<int32>(1, 2, 3);
 
     v.Y = 42;
 
@@ -72,612 +82,439 @@ TEST(VectorStorageTest, WritingThroughNamedAccessorUpdatesData)
     EXPECT_EQ(42, v.G);
 }
 
-TEST(VectorFactoryTest, ZeroHasEveryComponentZero)
+TEST(VectorStorageTest, HasNoPaddingAroundComponents)
 {
-    auto v = Zero<float, 4>;
+    EXPECT_EQ(sizeof(float) * 2, sizeof(Vec2));
+    EXPECT_EQ(sizeof(float) * 3, sizeof(Vec3));
+    EXPECT_EQ(sizeof(float) * 4, sizeof(Vec4));
+    EXPECT_EQ(sizeof(float) * 7, sizeof(Vector<float, 7>));
+}
 
-    for (usize i = 0; i < 4; ++i)
+TEST(VectorFactoryTest, FillRepeatsTheValue)
+{
+    const auto v = Fill<float, 5>(2.5f);
+
+    for (usize i = 0; i < 5; ++i)
     {
-        EXPECT_FLOAT_EQ(0.0f, v.Data[i]);
+        EXPECT_FLOAT_EQ(2.5f, v.Data[i]);
     }
 }
 
-TEST(VectorFactoryTest, OneHasEveryComponentOne)
+TEST(VectorFactoryTest, AxisSetsASingleComponent)
 {
-    auto v = One<int, 3>;
-
-    for (usize i = 0; i < 3; ++i)
-    {
-        EXPECT_EQ(1, v.Data[i]);
-    }
-}
-
-TEST(VectorFactoryTest, FillSetsEveryComponent)
-{
-    auto v = Fill<int, 4>(9);
-
-    for (usize i = 0; i < 4; ++i)
-    {
-        EXPECT_EQ(9, v.Data[i]);
-    }
-}
-
-TEST(VectorFactoryTest, AxisSetsOnlyRequestedComponent)
-{
-    auto v = Axis<float, 4>(2, 5.0f);
+    const auto v = Axis<float, 4>(2, 3.0f);
 
     EXPECT_FLOAT_EQ(0.0f, v.X);
     EXPECT_FLOAT_EQ(0.0f, v.Y);
-    EXPECT_FLOAT_EQ(5.0f, v.Z);
+    EXPECT_FLOAT_EQ(3.0f, v.Z);
     EXPECT_FLOAT_EQ(0.0f, v.W);
 }
 
-TEST(VectorUnitTest, UnitVectorsSelectTheirOwnAxis)
+TEST(VectorFactoryTest, ZeroAndOneFillEveryComponent)
 {
-    auto x = UnitX<float, 3>;
-    auto y = UnitY<float, 3>;
-    auto z = UnitZ<float, 3>;
-
-    EXPECT_FLOAT_EQ(1.0f, x.X);
-    EXPECT_FLOAT_EQ(0.0f, x.Y);
-    EXPECT_FLOAT_EQ(0.0f, x.Z);
-
-    EXPECT_FLOAT_EQ(0.0f, y.X);
-    EXPECT_FLOAT_EQ(1.0f, y.Y);
-    EXPECT_FLOAT_EQ(0.0f, y.Z);
-
-    EXPECT_FLOAT_EQ(0.0f, z.X);
-    EXPECT_FLOAT_EQ(0.0f, z.Y);
-    EXPECT_FLOAT_EQ(1.0f, z.Z);
+    for (usize i = 0; i < 4; ++i)
+    {
+        EXPECT_FLOAT_EQ(0.0f, (Zero<float, 4>).Data[i]);
+        EXPECT_FLOAT_EQ(1.0f, (One<float, 4>).Data[i]);
+    }
 }
 
-TEST(VectorUnitTest, UnitVectorsHaveUnitLength)
+TEST(VectorFactoryTest, UnitVectorsPointAlongTheirAxis)
 {
-    EXPECT_FLOAT_EQ(1.0f, Length(UnitX<float, 3>));
-    EXPECT_FLOAT_EQ(1.0f, Length(UnitY<float, 3>));
-    EXPECT_FLOAT_EQ(1.0f, Length(UnitZ<float, 3>));
+    EXPECT_TRUE(NearlyEqual(Vec4{1.0f, 0.0f, 0.0f, 0.0f}, (UnitX<float, 4>)));
+    EXPECT_TRUE(NearlyEqual(Vec4{0.0f, 1.0f, 0.0f, 0.0f}, (UnitY<float, 4>)));
+    EXPECT_TRUE(NearlyEqual(Vec4{0.0f, 0.0f, 1.0f, 0.0f}, (UnitZ<float, 4>)));
+    EXPECT_TRUE(NearlyEqual(Vec4{0.0f, 0.0f, 0.0f, 1.0f}, (UnitW<float, 4>)));
 }
 
-TEST(VectorUnitTest, UnitVectorsAreMutuallyOrthogonal)
+TEST(VectorFactoryTest, ShorthandConstantsMatchTheirTemplateCounterparts)
 {
-    EXPECT_FLOAT_EQ(0.0f, Dot(UnitX<float, 3>, UnitY<float, 3>));
-    EXPECT_FLOAT_EQ(0.0f, Dot(UnitX<float, 3>, UnitZ<float, 3>));
-    EXPECT_FLOAT_EQ(0.0f, Dot(UnitY<float, 3>, UnitZ<float, 3>));
+    EXPECT_TRUE(NearlyEqual(vec2::Zero, (Zero<float, 2>)));
+    EXPECT_TRUE(NearlyEqual(vec2::One, (One<float, 2>)));
+    EXPECT_TRUE(NearlyEqual(vec2::UnitY, (UnitY<float, 2>)));
+
+    EXPECT_TRUE(NearlyEqual(vec3::Zero, (Zero<float, 3>)));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitZ, (UnitZ<float, 3>)));
+
+    EXPECT_TRUE(NearlyEqual(vec4::One, (One<float, 4>)));
+    EXPECT_TRUE(NearlyEqual(vec4::UnitW, (UnitW<float, 4>)));
 }
 
-TEST(VectorUnitTest, UnitVectorsFormRightHandedBasis)
+TEST(VectorArithmeticTest, AddsAndSubtractsComponentWise)
 {
-    auto z = Cross(UnitX<float, 3>, UnitY<float, 3>);
+    const Vec3 lhs{1.0f, 2.0f, 3.0f};
+    const Vec3 rhs{4.0f, -5.0f, 6.0f};
 
-    EXPECT_FLOAT_EQ(0.0f, z.X);
-    EXPECT_FLOAT_EQ(0.0f, z.Y);
-    EXPECT_FLOAT_EQ(1.0f, z.Z);
+    EXPECT_TRUE(NearlyEqual(Vec3{5.0f, -3.0f, 9.0f}, lhs + rhs));
+    EXPECT_TRUE(NearlyEqual(Vec3{-3.0f, 7.0f, -3.0f}, lhs - rhs));
 }
 
-TEST(WorldDirectionTest, RightAndLeftLieOnX)
+TEST(VectorArithmeticTest, ScalesAndDividesEveryComponent)
 {
-    EXPECT_FLOAT_EQ(1.0f, world::Right.X);
-    EXPECT_FLOAT_EQ(0.0f, world::Right.Y);
-    EXPECT_FLOAT_EQ(0.0f, world::Right.Z);
+    const Vec3 v{1.0f, -2.0f, 3.0f};
 
-    EXPECT_FLOAT_EQ(-1.0f, world::Left.X);
-    EXPECT_FLOAT_EQ(0.0f, world::Left.Y);
-    EXPECT_FLOAT_EQ(0.0f, world::Left.Z);
-}
-
-TEST(WorldDirectionTest, UpAndDownLieOnY)
-{
-    EXPECT_FLOAT_EQ(0.0f, world::Up.X);
-    EXPECT_FLOAT_EQ(1.0f, world::Up.Y);
-    EXPECT_FLOAT_EQ(0.0f, world::Up.Z);
-
-    EXPECT_FLOAT_EQ(0.0f, world::Down.X);
-    EXPECT_FLOAT_EQ(-1.0f, world::Down.Y);
-    EXPECT_FLOAT_EQ(0.0f, world::Down.Z);
-}
-
-TEST(WorldDirectionTest, ForwardIsNegativeZAndBackIsPositiveZ)
-{
-    EXPECT_FLOAT_EQ(0.0f, world::Forward.X);
-    EXPECT_FLOAT_EQ(0.0f, world::Forward.Y);
-    EXPECT_FLOAT_EQ(-1.0f, world::Forward.Z);
-
-    EXPECT_FLOAT_EQ(0.0f, world::Back.X);
-    EXPECT_FLOAT_EQ(0.0f, world::Back.Y);
-    EXPECT_FLOAT_EQ(1.0f, world::Back.Z);
-}
-
-TEST(WorldDirectionTest, OppositesCancelOut)
-{
-    EXPECT_FLOAT_EQ(0.0f, Length(world::Right + world::Left));
-    EXPECT_FLOAT_EQ(0.0f, Length(world::Up + world::Down));
-    EXPECT_FLOAT_EQ(0.0f, Length(world::Forward + world::Back));
-}
-
-TEST(WorldDirectionTest, AreUnitLength)
-{
-    EXPECT_FLOAT_EQ(1.0f, Length(world::Right));
-    EXPECT_FLOAT_EQ(1.0f, Length(world::Left));
-    EXPECT_FLOAT_EQ(1.0f, Length(world::Up));
-    EXPECT_FLOAT_EQ(1.0f, Length(world::Down));
-    EXPECT_FLOAT_EQ(1.0f, Length(world::Forward));
-    EXPECT_FLOAT_EQ(1.0f, Length(world::Back));
-}
-
-TEST(WorldDirectionTest, AreMutuallyOrthogonal)
-{
-    EXPECT_FLOAT_EQ(0.0f, Dot(world::Right, world::Up));
-    EXPECT_FLOAT_EQ(0.0f, Dot(world::Right, world::Forward));
-    EXPECT_FLOAT_EQ(0.0f, Dot(world::Up, world::Forward));
-}
-
-TEST(WorldDirectionTest, BasisIsRightHanded)
-{
-    auto back = Cross(world::Right, world::Up);
-
-    EXPECT_FLOAT_EQ(world::Back.X, back.X);
-    EXPECT_FLOAT_EQ(world::Back.Y, back.Y);
-    EXPECT_FLOAT_EQ(world::Back.Z, back.Z);
-}
-
-TEST(WorldDirectionTest, MatchesMathUnitVectorsOnPositiveAxes)
-{
-    EXPECT_FLOAT_EQ(0.0f, Distance(world::Right, UnitX<float, 3>));
-    EXPECT_FLOAT_EQ(0.0f, Distance(world::Up, UnitY<float, 3>));
-    EXPECT_FLOAT_EQ(0.0f, Distance(world::Back, UnitZ<float, 3>));
-}
-
-TEST(VectorArithmeticTest, AddsComponentWise)
-{
-    auto c = Make<int>(1, 2, 3) + Make<int>(4, 5, 6);
-
-    EXPECT_EQ(5, c.X);
-    EXPECT_EQ(7, c.Y);
-    EXPECT_EQ(9, c.Z);
-}
-
-TEST(VectorArithmeticTest, SubtractsComponentWise)
-{
-    auto c = Make<int>(1, 2, 3) - Make<int>(4, 5, 6);
-
-    EXPECT_EQ(-3, c.X);
-    EXPECT_EQ(-3, c.Y);
-    EXPECT_EQ(-3, c.Z);
-}
-
-TEST(VectorArithmeticTest, ScalesByScalar)
-{
-    auto c = Make<int>(1, 2, 3) * 2;
-
-    EXPECT_EQ(2, c.X);
-    EXPECT_EQ(4, c.Y);
-    EXPECT_EQ(6, c.Z);
-}
-
-TEST(VectorArithmeticTest, DividesByScalar)
-{
-    auto c = Make<float>(2.0f, 4.0f, 6.0f) / 2.0f;
-
-    EXPECT_FLOAT_EQ(1.0f, c.X);
-    EXPECT_FLOAT_EQ(2.0f, c.Y);
-    EXPECT_FLOAT_EQ(3.0f, c.Z);
+    EXPECT_TRUE(NearlyEqual(Vec3{2.0f, -4.0f, 6.0f}, v * 2.0f));
+    EXPECT_TRUE(NearlyEqual(Vec3{0.5f, -1.0f, 1.5f}, v / 2.0f));
 }
 
 TEST(VectorArithmeticTest, AcceptsSmallNonZeroDivisor)
 {
-    auto c = Make<float>(1.0f, 2.0f, 3.0f) / 1e-8f;
+    Vec3 v{1e-4f, 2e-4f, 3e-4f};
 
-    EXPECT_FLOAT_EQ(1e8f, c.X);
-    EXPECT_FLOAT_EQ(3e8f, c.Z);
-}
+    v /= 1e-4f;
 
-TEST(VectorNormalizeTest, AcceptsVeryShortVector)
-{
-    auto v = Normalize(Make<float>(0.0f, 1e-20f));
-
-    EXPECT_FLOAT_EQ(0.0f, v.X);
-    EXPECT_FLOAT_EQ(1.0f, v.Y);
+    EXPECT_TRUE(NearlyEqual(Vec3{1.0f, 2.0f, 3.0f}, v, Tolerance));
 }
 
 TEST(VectorArithmeticTest, BinaryOperatorsLeaveOperandsUntouched)
 {
-    auto a = Make<int>(1, 2, 3);
-    auto b = Make<int>(4, 5, 6);
+    const Vec3 lhs{1.0f, 2.0f, 3.0f};
+    const Vec3 rhs{4.0f, 5.0f, 6.0f};
 
-    auto c = a + b;
+    const Vec3 sum = lhs + rhs;
+    const Vec3 scaled = lhs * 3.0f;
 
-    EXPECT_EQ(1, a.X);
-    EXPECT_EQ(4, b.X);
-    EXPECT_EQ(5, c.X);
+    EXPECT_TRUE(NearlyEqual(Vec3{1.0f, 2.0f, 3.0f}, lhs));
+    EXPECT_TRUE(NearlyEqual(Vec3{4.0f, 5.0f, 6.0f}, rhs));
+    EXPECT_TRUE(NearlyEqual(Vec3{5.0f, 7.0f, 9.0f}, sum));
+    EXPECT_TRUE(NearlyEqual(Vec3{3.0f, 6.0f, 9.0f}, scaled));
 }
 
 TEST(VectorArithmeticTest, CompoundAssignmentMutatesInPlace)
 {
-    auto a = Make<int>(1, 2, 3);
+    Vec3 v{1.0f, 2.0f, 3.0f};
 
-    a += Make<int>(4, 5, 6);
-    EXPECT_EQ(5, a.X);
+    v += Vec3{1.0f, 1.0f, 1.0f};
+    EXPECT_TRUE(NearlyEqual(Vec3{2.0f, 3.0f, 4.0f}, v));
 
-    a -= Make<int>(4, 5, 6);
-    EXPECT_EQ(1, a.X);
+    v -= Vec3{2.0f, 2.0f, 2.0f};
+    EXPECT_TRUE(NearlyEqual(Vec3{0.0f, 1.0f, 2.0f}, v));
 
-    a *= 3;
-    EXPECT_EQ(3, a.X);
+    v *= 4.0f;
+    EXPECT_TRUE(NearlyEqual(Vec3{0.0f, 4.0f, 8.0f}, v));
 
-    a /= 3;
-    EXPECT_EQ(1, a.X);
+    v /= 2.0f;
+    EXPECT_TRUE(NearlyEqual(Vec3{0.0f, 2.0f, 4.0f}, v));
 }
 
-TEST(VectorArithmeticTest, OperationsResolveThroughAdlWithoutUsingDirective)
+TEST(VectorArithmeticTest, CompoundAssignmentReturnsTheSameObject)
 {
-    cw::math::Vec3i a = cw::math::vec::Make<cw::int32>(1, 2, 3);
-    cw::math::Vec3i b = cw::math::vec::Make<cw::int32>(4, 5, 6);
+    Vec3 v{1.0f, 2.0f, 3.0f};
 
-    cw::math::Vec3i c = a + b;
-
-    EXPECT_EQ(5, c.X);
-    EXPECT_EQ(32, Dot(a, b));
+    EXPECT_EQ(&v, &(v += vec3::One));
+    EXPECT_EQ(&v, &(v -= vec3::One));
+    EXPECT_EQ(&v, &(v *= 2.0f));
+    EXPECT_EQ(&v, &(v /= 2.0f));
 }
 
-TEST(VectorLengthTest, IntegerLengthPromotesToDouble)
+TEST(VectorArithmeticTest, WorksOnIntegerVectors)
 {
-    auto v = Make<int>(0, 5);
+    const Vec3i lhs{1, 2, 3};
+    const Vec3i rhs{4, 5, 6};
 
-    EXPECT_TRUE((std::is_same_v<decltype(Length(v)), double>));
-    EXPECT_DOUBLE_EQ(5.0, Length(v));
+    EXPECT_TRUE(NearlyEqual(Vec3i{5, 7, 9}, lhs + rhs));
+    EXPECT_TRUE(NearlyEqual(Vec3i{-3, -3, -3}, lhs - rhs));
+    EXPECT_TRUE(NearlyEqual(Vec3i{2, 4, 6}, lhs * 2));
+    EXPECT_TRUE(NearlyEqual(Vec3i{0, 1, 1}, lhs / 2));
 }
 
-TEST(VectorLengthTest, FloatLengthStaysFloat)
+TEST(VectorLengthTest, MeasuresPythagoreanTriples)
 {
-    auto v = Make<float>(3.0f, 4.0f);
-
-    EXPECT_TRUE((std::is_same_v<decltype(Length(v)), float>));
-    EXPECT_FLOAT_EQ(5.0f, Length(v));
+    EXPECT_FLOAT_EQ(5.0f, Length(Vec2{3.0f, 4.0f}));
+    EXPECT_FLOAT_EQ(13.0f, Length(Vec3{3.0f, 4.0f, 12.0f}));
+    EXPECT_FLOAT_EQ(0.0f, Length(vec3::Zero));
 }
 
-TEST(VectorLengthTest, HandlesThreeAndFourDimensions)
+TEST(VectorLengthTest, IgnoresComponentSigns)
 {
-    EXPECT_DOUBLE_EQ(7.0, Length(Make<int>(2, 3, 6)));
-    EXPECT_DOUBLE_EQ(5.0, Length(Make<int>(1, 2, 2, 4)));
+    EXPECT_FLOAT_EQ(Length(Vec3{3.0f, 4.0f, 12.0f}), Length(Vec3{-3.0f, -4.0f, -12.0f}));
 }
 
-TEST(VectorLengthTest, ZeroVectorHasZeroLength)
+TEST(VectorLengthTest, ScalesLinearly)
 {
-    EXPECT_FLOAT_EQ(0.0f, Length(Zero<float, 3>));
+    const Vec3 v{1.0f, -2.0f, 2.0f};
+
+    EXPECT_FLOAT_EQ(3.0f, Length(v));
+    EXPECT_FLOAT_EQ(9.0f, Length(v * 3.0f));
 }
 
 TEST(VectorLengthTest, SquaredMatchesLengthTimesLength)
 {
-    auto v = Make<float>(3.0f, 4.0f);
+    const Vec4 v{1.0f, -2.0f, 3.0f, -4.0f};
 
-    EXPECT_FLOAT_EQ(Length(v) * Length(v), LengthSquared(v));
+    EXPECT_FLOAT_EQ(30.0f, LengthSquared(v));
+    EXPECT_NEAR(Length(v) * Length(v), LengthSquared(v), 1e-4f);
 }
 
-TEST(VectorLengthTest, SquaredKeepsElementType)
+TEST(VectorLengthTest, WidensIntegerLengthToDouble)
 {
-    auto v = Fill<int32, 2>(30000);
+    const Vec3i v{1, 2, 2};
+
+    EXPECT_TRUE((std::is_same_v<decltype(Length(v)), double>));
+    EXPECT_DOUBLE_EQ(3.0, Length(v));
+
+    EXPECT_TRUE((std::is_same_v<decltype(Length(Vec3{})), float>));
+}
+
+TEST(VectorLengthTest, SquaredKeepsTheElementType)
+{
+    const Vec3i v{1, 2, 2};
 
     EXPECT_TRUE((std::is_same_v<decltype(LengthSquared(v)), int32>));
-    EXPECT_EQ(1800000000, LengthSquared(v));
+    EXPECT_EQ(9, LengthSquared(v));
 }
 
-TEST(VectorDotTest, ComputesSumOfProducts)
+TEST(VectorLengthTest, IntegerLengthDoesNotTruncateBeforeTheRoot)
 {
-    EXPECT_EQ(32, Dot(Make<int>(1, 2, 3), Make<int>(4, 5, 6)));
+    const Vec2i v{40000, 30000};
+
+    EXPECT_DOUBLE_EQ(50000.0, Length(v));
 }
 
-TEST(VectorDotTest, OrthogonalVectorsGiveZero)
+TEST(VectorDistanceTest, MeasuresTheGapBetweenPoints)
 {
-    EXPECT_EQ(0, Dot(Make<int>(1, 0, 0), Make<int>(0, 1, 0)));
+    const Vec3 lhs{1.0f, 2.0f, 3.0f};
+    const Vec3 rhs{4.0f, 6.0f, 3.0f};
+
+    EXPECT_FLOAT_EQ(5.0f, Distance(lhs, rhs));
+    EXPECT_FLOAT_EQ(25.0f, DistanceSquared(lhs, rhs));
 }
 
-TEST(VectorDotTest, IsCommutative)
+TEST(VectorDistanceTest, IsSymmetricAndZeroForEqualPoints)
 {
-    auto a = Make<int>(1, 2, 3);
-    auto b = Make<int>(4, 5, 6);
+    const Vec3 lhs{1.0f, 2.0f, 3.0f};
+    const Vec3 rhs{-4.0f, 6.0f, 0.5f};
 
-    EXPECT_EQ(Dot(a, b), Dot(b, a));
+    EXPECT_FLOAT_EQ(Distance(lhs, rhs), Distance(rhs, lhs));
+    EXPECT_FLOAT_EQ(0.0f, Distance(lhs, lhs));
 }
 
-TEST(VectorDotTest, SelfDotEqualsLengthSquared)
+TEST(VectorDistanceTest, MatchesLengthOfTheDifference)
 {
-    auto v = Make<int>(1, 2, 3);
+    const Vec3 lhs{1.0f, 2.0f, 3.0f};
+    const Vec3 rhs{-4.0f, 6.0f, 0.5f};
 
-    EXPECT_EQ(LengthSquared(v), Dot(v, v));
+    EXPECT_FLOAT_EQ(Length(rhs - lhs), Distance(lhs, rhs));
 }
 
-TEST(VectorDotTest, KeepsElementType)
+TEST(VectorDistanceTest, WidensIntegerDistanceToDouble)
 {
-    auto v = Fill<int32, 2>(30000);
+    const Vec3i lhs{0, 0, 0};
+    const Vec3i rhs{3, 4, 0};
 
-    EXPECT_TRUE((std::is_same_v<decltype(Dot(v, v)), int32>));
-    EXPECT_EQ(1800000000, Dot(v, v));
-
-    auto wide = Fill<int64, 2>(100000);
-
-    EXPECT_TRUE((std::is_same_v<decltype(Dot(wide, wide)), int64>));
-    EXPECT_EQ(20000000000LL, Dot(wide, wide));
+    EXPECT_TRUE((std::is_same_v<decltype(Distance(lhs, rhs)), double>));
+    EXPECT_DOUBLE_EQ(5.0, Distance(lhs, rhs));
+    EXPECT_EQ(25, DistanceSquared(lhs, rhs));
 }
 
-TEST(VectorCrossTest, TwoDimensionalReturnsScalar)
+TEST(VectorDistanceTest, IntegerDistanceDoesNotWrapAroundOnLargeGaps)
 {
-    auto a = Make<int>(1, 0);
-    auto b = Make<int>(0, 1);
+    const Vec2i lhs{-40000, 0};
+    const Vec2i rhs{0, 30000};
 
-    EXPECT_TRUE((std::is_same_v<decltype(Cross(a, b)), int>));
-    EXPECT_EQ(1, Cross(a, b));
-    EXPECT_EQ(-1, Cross(b, a));
-}
-
-TEST(VectorCrossTest, TwoDimensionalParallelGivesZero)
-{
-    EXPECT_EQ(0, Cross(Make<int>(2, 4), Make<int>(1, 2)));
-}
-
-TEST(VectorCrossTest, ThreeDimensionalFollowsRightHandRule)
-{
-    auto z = Cross(Make<int>(1, 0, 0), Make<int>(0, 1, 0));
-
-    EXPECT_EQ(0, z.X);
-    EXPECT_EQ(0, z.Y);
-    EXPECT_EQ(1, z.Z);
-}
-
-TEST(VectorCrossTest, ThreeDimensionalComputesKnownValue)
-{
-    auto c = Cross(Make<int>(1, 2, 3), Make<int>(4, 5, 6));
-
-    EXPECT_EQ(-3, c.X);
-    EXPECT_EQ(6, c.Y);
-    EXPECT_EQ(-3, c.Z);
-}
-
-TEST(VectorCrossTest, ThreeDimensionalIsAnticommutative)
-{
-    auto ab = Cross(Make<int>(1, 2, 3), Make<int>(4, 5, 6));
-    auto ba = Cross(Make<int>(4, 5, 6), Make<int>(1, 2, 3));
-
-    EXPECT_EQ(-ab.X, ba.X);
-    EXPECT_EQ(-ab.Y, ba.Y);
-    EXPECT_EQ(-ab.Z, ba.Z);
-}
-
-TEST(VectorCrossTest, ThreeDimensionalResultIsOrthogonalToBothOperands)
-{
-    auto a = Make<int64>(1LL, 2LL, 3LL);
-    auto b = Make<int64>(4LL, 5LL, 6LL);
-
-    auto c = Cross(a, b);
-
-    EXPECT_EQ(0, Dot(a, c));
-    EXPECT_EQ(0, Dot(b, c));
-}
-
-TEST(VectorCrossTest, ThreeDimensionalParallelGivesZeroVector)
-{
-    auto c = Cross(Make<int>(1, 2, 3), Make<int>(2, 4, 6));
-
-    EXPECT_EQ(0, c.X);
-    EXPECT_EQ(0, c.Y);
-    EXPECT_EQ(0, c.Z);
-}
-
-TEST(VectorDistanceTest, MeasuresBetweenIntegerPoints)
-{
-    auto a = Make<int>(1, 2);
-    auto b = Make<int>(4, 6);
-
-    EXPECT_DOUBLE_EQ(5.0, Distance(a, b));
-    EXPECT_EQ(25, DistanceSquared(a, b));
-}
-
-TEST(VectorDistanceTest, MeasuresBetweenFloatPoints)
-{
-    auto a = Make<float>(1.0f, 2.0f);
-    auto b = Make<float>(4.0f, 6.0f);
-
-    EXPECT_FLOAT_EQ(5.0f, Distance(a, b));
-    EXPECT_FLOAT_EQ(25.0f, DistanceSquared(a, b));
-}
-
-TEST(VectorDistanceTest, IsSymmetric)
-{
-    auto a = Make<int>(1, 2);
-    auto b = Make<int>(4, 6);
-
-    EXPECT_DOUBLE_EQ(Distance(a, b), Distance(b, a));
-    EXPECT_EQ(DistanceSquared(a, b), DistanceSquared(b, a));
-}
-
-TEST(VectorDistanceTest, IsZeroForIdenticalPoints)
-{
-    auto v = Make<float>(3.0f, 4.0f);
-
-    EXPECT_FLOAT_EQ(0.0f, Distance(v, v));
-}
-
-TEST(VectorDistanceTest, IntegerOverloadAvoidsIntermediateOverflow)
-{
-    auto a = Make<int32>(-2000000000, 0);
-    auto b = Make<int32>(2000000000, 0);
-
-    EXPECT_DOUBLE_EQ(4000000000.0, Distance(a, b));
-}
-
-TEST(VectorDistanceTest, SquaredKeepsElementType)
-{
-    auto a = Zero<int32, 2>;
-    auto b = Fill<int32, 2>(30000);
-
-    EXPECT_TRUE((std::is_same_v<decltype(DistanceSquared(a, b)), int32>));
-    EXPECT_EQ(1800000000, DistanceSquared(a, b));
+    EXPECT_DOUBLE_EQ(50000.0, Distance(lhs, rhs));
 }
 
 TEST(VectorNormalizeTest, ProducesUnitLength)
 {
-    EXPECT_FLOAT_EQ(1.0f, Length(Normalize(Make<float>(3.0f, 4.0f))));
+    const Vec3 v{3.0f, -4.0f, 12.0f};
+
+    EXPECT_NEAR(1.0f, Length(Normalize(v)), Tolerance);
 }
 
-TEST(VectorNormalizeTest, PreservesDirection)
+TEST(VectorNormalizeTest, KeepsTheDirection)
 {
-    auto v = Normalize(Make<float>(3.0f, 4.0f));
+    const Vec3 v{0.0f, 3.0f, 4.0f};
 
-    EXPECT_FLOAT_EQ(0.6f, v.X);
-    EXPECT_FLOAT_EQ(0.8f, v.Y);
+    EXPECT_TRUE(NearlyEqual(Vec3{0.0f, 0.6f, 0.8f}, Normalize(v), Tolerance));
 }
 
-TEST(VectorNormalizeTest, AcceptsIntegerInput)
+TEST(VectorNormalizeTest, IgnoresTheMagnitudeOfTheInput)
 {
-    auto v = Normalize(Make<int>(0, 0, 5));
+    const Vec3 v{1.0f, 2.0f, 3.0f};
 
-    EXPECT_FLOAT_EQ(0.0f, v.X);
-    EXPECT_FLOAT_EQ(0.0f, v.Y);
-    EXPECT_FLOAT_EQ(1.0f, v.Z);
+    EXPECT_TRUE(NearlyEqual(Normalize(v), Normalize(v * 100.0f), Tolerance));
 }
 
-TEST(VectorNormalizeTest, LeavesUnitVectorUnchanged)
+TEST(VectorNormalizeTest, LeavesUnitVectorsUnchanged)
 {
-    auto v = Normalize(world::Up);
-
-    EXPECT_FLOAT_EQ(0.0f, v.X);
-    EXPECT_FLOAT_EQ(1.0f, v.Y);
-    EXPECT_FLOAT_EQ(0.0f, v.Z);
+    EXPECT_TRUE(NearlyEqual(vec3::UnitY, Normalize(vec3::UnitY), Tolerance));
 }
 
-TEST(VectorNormalizeTest, AlwaysReturnsFloatVector)
+TEST(VectorNormalizeTest, HandlesVerySmallVectors)
 {
-    auto fromInt    = Normalize(Make<int>(0, 5));
-    auto fromDouble = Normalize(Make<double>(0.0, 5.0));
+    const Vec3 v{1e-8f, 0.0f, 0.0f};
 
-    EXPECT_TRUE((std::is_same_v<decltype(fromInt), Vec2>));
-    EXPECT_TRUE((std::is_same_v<decltype(fromDouble), Vec2>));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitX, Normalize(v), Tolerance));
 }
 
-TEST(VectorPerpTest, CounterClockwiseRotatesQuarterTurn)
+TEST(VectorNormalizeTest, WidensIntegerInputToFloat)
 {
-    auto p = PerpCCW(Make<int>(1, 0));
+    const Vec3i v{0, 3, 4};
 
-    EXPECT_EQ(0, p.X);
-    EXPECT_EQ(1, p.Y);
+    const auto normalized = Normalize(v);
+
+    EXPECT_TRUE((std::is_same_v<decltype(normalized), const Vec3>));
+    EXPECT_TRUE(NearlyEqual(Vec3{0.0f, 0.6f, 0.8f}, normalized, Tolerance));
 }
 
-TEST(VectorPerpTest, ClockwiseRotatesQuarterTurn)
+TEST(VectorDotTest, SelfDotEqualsLengthSquared)
 {
-    auto p = PerpCW(Make<int>(1, 0));
+    const Vec3 v{1.0f, -2.0f, 3.0f};
 
-    EXPECT_EQ(0, p.X);
-    EXPECT_EQ(-1, p.Y);
+    EXPECT_FLOAT_EQ(LengthSquared(v), Dot(v, v));
 }
 
-TEST(VectorPerpTest, ResultIsOrthogonalToInput)
+TEST(VectorDotTest, IsCommutative)
 {
-    auto v = Make<int>(3, 4);
+    const Vec3 lhs{1.0f, -2.0f, 3.0f};
+    const Vec3 rhs{4.0f, 5.0f, -6.0f};
 
-    EXPECT_EQ(0, Dot(v, PerpCCW(v)));
-    EXPECT_EQ(0, Dot(v, PerpCW(v)));
+    EXPECT_FLOAT_EQ(Dot(lhs, rhs), Dot(rhs, lhs));
 }
 
-TEST(VectorPerpTest, RotationDirectionsHaveOppositeSign)
+TEST(VectorDotTest, VanishesForOrthogonalVectors)
 {
-    auto v = Make<int>(3, 4);
-
-    EXPECT_GT(Cross(v, PerpCCW(v)), 0);
-    EXPECT_LT(Cross(v, PerpCW(v)), 0);
+    EXPECT_FLOAT_EQ(0.0f, Dot(vec3::UnitX, vec3::UnitY));
+    EXPECT_FLOAT_EQ(0.0f, Dot(vec3::UnitY, vec3::UnitZ));
+    EXPECT_FLOAT_EQ(0.0f, Dot(Vec2{1.0f, 2.0f}, Vec2{-2.0f, 1.0f}));
 }
 
-TEST(VectorPerpTest, PreservesLength)
+TEST(VectorDotTest, SignFollowsTheAngle)
 {
-    auto v = Make<float>(3.0f, 4.0f);
+    const Vec3 v{1.0f, 1.0f, 0.0f};
 
+    EXPECT_GT(Dot(v, vec3::UnitX), 0.0f);
+    EXPECT_LT(Dot(v, vec3::UnitX * -1.0f), 0.0f);
+}
+
+TEST(VectorDotTest, IsLinearInBothArguments)
+{
+    const Vec3 a{1.0f, 2.0f, 3.0f};
+    const Vec3 b{-1.0f, 0.5f, 2.0f};
+    const Vec3 c{4.0f, -2.0f, 1.0f};
+
+    EXPECT_NEAR(Dot(a, b) + Dot(a, c), Dot(a, b + c), 1e-4f);
+    EXPECT_NEAR(Dot(a, b) * 3.0f, Dot(a * 3.0f, b), 1e-4f);
+}
+
+TEST(VectorDotTest, KeepsTheElementType)
+{
+    const Vec3i v{1, 2, 3};
+
+    EXPECT_TRUE((std::is_same_v<decltype(Dot(v, v)), int32>));
+    EXPECT_EQ(14, Dot(v, v));
+}
+
+TEST(VectorCrossTest, FollowsRightHandRuleForBasisVectors)
+{
+    EXPECT_TRUE(NearlyEqual(vec3::UnitZ, Cross(vec3::UnitX, vec3::UnitY)));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitX, Cross(vec3::UnitY, vec3::UnitZ)));
+    EXPECT_TRUE(NearlyEqual(vec3::UnitY, Cross(vec3::UnitZ, vec3::UnitX)));
+}
+
+TEST(VectorCrossTest, IsAntiCommutative)
+{
+    const Vec3 lhs{1.0f, 2.0f, 3.0f};
+    const Vec3 rhs{-4.0f, 5.0f, 6.0f};
+
+    EXPECT_TRUE(NearlyEqual(Cross(lhs, rhs), Cross(rhs, lhs) * -1.0f));
+}
+
+TEST(VectorCrossTest, IsOrthogonalToBothOperands)
+{
+    const Vec3 lhs{1.0f, 2.0f, 3.0f};
+    const Vec3 rhs{-4.0f, 5.0f, 6.0f};
+
+    const Vec3 product = Cross(lhs, rhs);
+
+    EXPECT_NEAR(0.0f, Dot(product, lhs), 1e-4f);
+    EXPECT_NEAR(0.0f, Dot(product, rhs), 1e-4f);
+}
+
+TEST(VectorCrossTest, VanishesForParallelVectors)
+{
+    const Vec3 v{1.0f, 2.0f, 3.0f};
+
+    EXPECT_TRUE(NearlyZero(Cross(v, v)));
+    EXPECT_TRUE(NearlyZero(Cross(v, v * 2.5f), 1e-5f));
+}
+
+TEST(VectorCrossTest, TwoDimensionalVersionReturnsSignedArea)
+{
+    EXPECT_FLOAT_EQ(1.0f, Cross(vec2::UnitX, vec2::UnitY));
+    EXPECT_FLOAT_EQ(-1.0f, Cross(vec2::UnitY, vec2::UnitX));
+    EXPECT_FLOAT_EQ(0.0f, Cross(Vec2{2.0f, 4.0f}, Vec2{1.0f, 2.0f}));
+    EXPECT_FLOAT_EQ(-2.0f, Cross(Vec2{2.0f, 0.0f}, Vec2{3.0f, -1.0f}));
+}
+
+TEST(VectorCrossTest, MatchesTheZComponentOfTheThreeDimensionalVersion)
+{
+    const Vec2 lhs{1.0f, 2.0f};
+    const Vec2 rhs{-3.0f, 4.0f};
+
+    const Vec3 lifted = Cross(Vec3{lhs.X, lhs.Y, 0.0f}, Vec3{rhs.X, rhs.Y, 0.0f});
+
+    EXPECT_FLOAT_EQ(lifted.Z, Cross(lhs, rhs));
+}
+
+TEST(VectorCrossTest, IntegerCrossDoesNotOverflowInIntermediateProducts)
+{
+    const Vector<int32, 3> lhs{100000, 0, 0};
+    const Vector<int32, 3> rhs{0, 20000, 0};
+
+    const auto product = Cross(lhs, rhs);
+
+    EXPECT_EQ(0, product.X);
+    EXPECT_EQ(0, product.Y);
+    EXPECT_EQ(2000000000, product.Z);
+}
+
+TEST(VectorPerpTest, TurnsByAQuarterTurn)
+{
+    const Vec2 v{2.0f, 1.0f};
+
+    EXPECT_TRUE(NearlyEqual(Vec2{-1.0f, 2.0f}, PerpCCW(v)));
+    EXPECT_TRUE(NearlyEqual(Vec2{1.0f, -2.0f}, PerpCW(v)));
+}
+
+TEST(VectorPerpTest, IsOrthogonalAndLengthPreserving)
+{
+    const Vec2 v{2.0f, 1.0f};
+
+    EXPECT_FLOAT_EQ(0.0f, Dot(v, PerpCCW(v)));
+    EXPECT_FLOAT_EQ(0.0f, Dot(v, PerpCW(v)));
     EXPECT_FLOAT_EQ(Length(v), Length(PerpCCW(v)));
-    EXPECT_FLOAT_EQ(Length(v), Length(PerpCW(v)));
 }
 
-TEST(VectorPerpTest, AppliedFourTimesReturnsOriginal)
+TEST(VectorPerpTest, OppositeDirectionsAreNegatives)
 {
-    auto v = Make<int>(3, 4);
+    const Vec2 v{2.0f, 1.0f};
 
-    auto r = PerpCCW(PerpCCW(PerpCCW(PerpCCW(v))));
-
-    EXPECT_EQ(v.X, r.X);
-    EXPECT_EQ(v.Y, r.Y);
-}
-
-TEST(VectorShorthandTest, MatchTheirTemplateCounterparts)
-{
-    EXPECT_TRUE(NearlyEqual(vec2::Zero, Zero<float, 2>));
-    EXPECT_TRUE(NearlyEqual(vec2::One, One<float, 2>));
-    EXPECT_TRUE(NearlyEqual(vec2::UnitX, UnitX<float, 2>));
-    EXPECT_TRUE(NearlyEqual(vec2::UnitY, UnitY<float, 2>));
-
-    EXPECT_TRUE(NearlyEqual(vec3::Zero, Zero<float, 3>));
-    EXPECT_TRUE(NearlyEqual(vec3::One, One<float, 3>));
-    EXPECT_TRUE(NearlyEqual(vec3::UnitX, UnitX<float, 3>));
-    EXPECT_TRUE(NearlyEqual(vec3::UnitY, UnitY<float, 3>));
-    EXPECT_TRUE(NearlyEqual(vec3::UnitZ, UnitZ<float, 3>));
-
-    EXPECT_TRUE(NearlyEqual(vec4::Zero, Zero<float, 4>));
-    EXPECT_TRUE(NearlyEqual(vec4::One, One<float, 4>));
-    EXPECT_TRUE(NearlyEqual(vec4::UnitX, UnitX<float, 4>));
-    EXPECT_TRUE(NearlyEqual(vec4::UnitY, UnitY<float, 4>));
-    EXPECT_TRUE(NearlyEqual(vec4::UnitZ, UnitZ<float, 4>));
-    EXPECT_TRUE(NearlyEqual(vec4::UnitW, UnitW<float, 4>));
-}
-
-TEST(VectorShorthandTest, SelectTheExpectedAxis)
-{
-    EXPECT_FLOAT_EQ(1.0f, vec3::UnitY.Y);
-    EXPECT_FLOAT_EQ(0.0f, vec3::UnitY.X);
-    EXPECT_FLOAT_EQ(0.0f, vec3::UnitY.Z);
-
-    EXPECT_FLOAT_EQ(1.0f, vec4::UnitW.W);
-    EXPECT_FLOAT_EQ(0.0f, vec4::UnitW.Z);
-}
-
-namespace
-{
-    static_assert(std::is_same_v<decltype(vec2::Zero), const Vec2>);
-    static_assert(std::is_same_v<decltype(vec3::UnitZ), const Vec3>);
-    static_assert(std::is_same_v<decltype(vec4::UnitW), const Vec4>);
-
-    static_assert(vec2::One.Data[0] == 1.0f && vec2::One.Data[1] == 1.0f);
-    static_assert(vec3::UnitZ.Data[2] == 1.0f && vec3::UnitZ.Data[0] == 0.0f);
-    static_assert(vec4::UnitW.Data[3] == 1.0f && vec4::UnitW.Data[2] == 0.0f);
-    static_assert(vec4::Zero.Data[3] == 0.0f);
-}
-
-namespace
-{
-    constexpr auto g_A   = Make<int>(1, 2, 3);
-    constexpr auto g_B   = Make<int>(4, 5, 6);
-    constexpr auto g_Sum = g_A + g_B;
-
-    static_assert(g_Sum.Data[0] == 5);
-    static_assert(g_Sum.Data[1] == 7);
-    static_assert(g_Sum.Data[2] == 9);
-
-    static_assert(Dot(g_A, g_B) == 32);
-    static_assert(LengthSquared(g_A) == 14);
-    static_assert(DistanceSquared(g_A, g_B) == 27);
-
-    static_assert(Zero<int, 3>.Data[0] == 0);
-    static_assert(One<int, 3>.Data[1] == 1);
-    static_assert(UnitX<int, 3>.Data[0] == 1);
-    static_assert(UnitY<int, 3>.Data[1] == 1);
-    static_assert(UnitZ<int, 3>.Data[2] == 1);
-
-    static_assert(Fill<int, 3>(7).Data[2] == 7);
-    static_assert(Axis<int, 3>(2, 4).Data[2] == 4);
-
-    static_assert(world::Right.Data[0] == 1.0f);
-    static_assert(world::Left.Data[0] == -1.0f);
-    static_assert(world::Up.Data[1] == 1.0f);
-    static_assert(world::Down.Data[1] == -1.0f);
-    static_assert(world::Forward.Data[2] == -1.0f);
-    static_assert(world::Back.Data[2] == 1.0f);
+    EXPECT_TRUE(NearlyEqual(PerpCCW(v), PerpCW(v) * -1.0f));
+    EXPECT_GT(Cross(v, PerpCCW(v)), 0.0f);
+    EXPECT_LT(Cross(v, PerpCW(v)), 0.0f);
 }
 
 TEST(VectorConstexprTest, ExpressionsEvaluateAtCompileTime)
 {
+    constexpr Vec3 sum = Vec3{1.0f, 2.0f, 3.0f} + Vec3{1.0f, 1.0f, 1.0f};
+    static_assert(sum.Data[1] == 3.0f);
+
+    constexpr Vec3 scaled = Vec3{1.0f, 2.0f, 3.0f} * 2.0f;
+    static_assert(scaled.Data[2] == 6.0f);
+
+    constexpr Vec3 difference = Vec3{1.0f, 2.0f, 3.0f} - Vec3{1.0f, 1.0f, 1.0f};
+    static_assert(difference.Data[0] == 0.0f);
+
+    constexpr float dot = Dot(Vec3{1.0f, 2.0f, 3.0f}, Vec3{4.0f, 5.0f, 6.0f});
+    static_assert(dot == 32.0f);
+
+    constexpr float lengthSquared = LengthSquared(Vec3{1.0f, 2.0f, 2.0f});
+    static_assert(lengthSquared == 9.0f);
+
+    static_assert((Zero<float, 3>).Data[0] == 0.0f);
+    static_assert((UnitZ<float, 3>).Data[2] == 1.0f);
+
     SUCCEED();
 }

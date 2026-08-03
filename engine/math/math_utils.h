@@ -10,6 +10,8 @@ namespace cw::math
     template<CFloating T>
     inline constexpr T Epsilon = std::numeric_limits<T>::epsilon();
 
+    inline constexpr float Pi = 3.14159265358979323846f;
+
     template<CScalar T>
     constexpr T Abs(T value)
     {
@@ -132,5 +134,15 @@ namespace cw::math
         }
 
         return true;
+    }
+
+    constexpr float Radians(float degrees)
+    {
+        return degrees * 0.01745f;
+    }
+
+    constexpr float Degrees(float radians)
+    {
+        return radians * 57.2958f;
     }
 }

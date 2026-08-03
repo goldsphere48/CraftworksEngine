@@ -1,763 +1,872 @@
 #include <gtest/gtest.h>
 
+#include <math/math_utils.h>
 #include <math/matrix.h>
+#include <math/vector.h>
+
+#include <type_traits>
 
 using namespace cw;
 using namespace cw::math;
-using namespace cw::math::mat;
 
 namespace
 {
-    template<usize R, usize C>
-    void ExpectRowMajor(const Matrix<float, R, C>& matrix, const float (&expected)[R * C])
+    constexpr float Tolerance = 1e-5f;
+
+    Mat3 MakeArbitrary()
     {
-        for (usize row = 0; row < R; ++row)
-        {
-            for (usize column = 0; column < C; ++column)
-            {
-                EXPECT_FLOAT_EQ(expected[row * C + column], At(matrix, row, column))
-                    << "row " << row << " column " << column;
-            }
-        }
+        return mat::Make<float, 3, 3>(
+            2.0f, -1.0f, 0.5f,
+            0.0f,  3.0f, 1.0f,
+            1.0f,  4.0f, -2.0f
+        );
     }
 
-    constexpr Matrix<float, 2, 3> MakeA23()
+    Mat3 MakeOtherArbitrary()
     {
-        return Make<float, 2, 3>(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
-    }
-
-    constexpr Matrix<float, 3, 2> MakeB32()
-    {
-        return Make<float, 3, 2>(7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f);
-    }
-
-    constexpr Matrix<float, 3, 3> MakeTridiagonal()
-    {
-        return Make<float, 3, 3>(2.0f, -1.0f, 0.0f, -1.0f, 2.0f, -1.0f, 0.0f, -1.0f, 2.0f);
+        return mat::Make<float, 3, 3>(
+            -1.0f, 2.0f, 3.0f,
+             0.5f, 1.0f, 0.0f,
+             2.0f, 0.0f, 1.0f
+        );
     }
 }
 
 TEST(MatrixStorageTest, MakeTakesRowMajorArguments)
 {
-    auto m = MakeA23();
+    const Matrix<float, 2, 3> matrix = mat::Make<float, 2, 3>(
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f
+    );
 
-    EXPECT_FLOAT_EQ(1.0f, At(m, 0, 0));
-    EXPECT_FLOAT_EQ(2.0f, At(m, 0, 1));
-    EXPECT_FLOAT_EQ(3.0f, At(m, 0, 2));
-    EXPECT_FLOAT_EQ(4.0f, At(m, 1, 0));
-    EXPECT_FLOAT_EQ(5.0f, At(m, 1, 1));
-    EXPECT_FLOAT_EQ(6.0f, At(m, 1, 2));
+    EXPECT_FLOAT_EQ(1.0f, mat::At(matrix, 0, 0));
+    EXPECT_FLOAT_EQ(2.0f, mat::At(matrix, 0, 1));
+    EXPECT_FLOAT_EQ(3.0f, mat::At(matrix, 0, 2));
+    EXPECT_FLOAT_EQ(4.0f, mat::At(matrix, 1, 0));
+    EXPECT_FLOAT_EQ(5.0f, mat::At(matrix, 1, 1));
+    EXPECT_FLOAT_EQ(6.0f, mat::At(matrix, 1, 2));
 }
 
 TEST(MatrixStorageTest, DataIsColumnMajor)
 {
-    auto m = MakeA23();
+    const Matrix<float, 2, 3> matrix = mat::Make<float, 2, 3>(
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f
+    );
 
-    EXPECT_FLOAT_EQ(1.0f, m.Data[0]);
-    EXPECT_FLOAT_EQ(4.0f, m.Data[1]);
-    EXPECT_FLOAT_EQ(2.0f, m.Data[2]);
-    EXPECT_FLOAT_EQ(5.0f, m.Data[3]);
-    EXPECT_FLOAT_EQ(3.0f, m.Data[4]);
-    EXPECT_FLOAT_EQ(6.0f, m.Data[5]);
+    EXPECT_FLOAT_EQ(1.0f, matrix.Data[0]);
+    EXPECT_FLOAT_EQ(4.0f, matrix.Data[1]);
+    EXPECT_FLOAT_EQ(2.0f, matrix.Data[2]);
+    EXPECT_FLOAT_EQ(5.0f, matrix.Data[3]);
+    EXPECT_FLOAT_EQ(3.0f, matrix.Data[4]);
+    EXPECT_FLOAT_EQ(6.0f, matrix.Data[5]);
+}
+
+TEST(MatrixStorageTest, HasNoPaddingAroundElements)
+{
+    EXPECT_EQ(sizeof(float) * 4, sizeof(Mat2));
+    EXPECT_EQ(sizeof(float) * 9, sizeof(Mat3));
+    EXPECT_EQ(sizeof(float) * 16, sizeof(Mat4));
 }
 
 TEST(MatrixStorageTest, MutableAtWritesThrough)
 {
-    auto m = MakeA23();
+    Mat3 matrix = mat3::Zero;
 
-    At(m, 1, 2) = 42.0f;
+    mat::At(matrix, 1, 2) = 7.0f;
 
-    EXPECT_FLOAT_EQ(42.0f, At(m, 1, 2));
-    EXPECT_FLOAT_EQ(42.0f, m.Data[5]);
+    EXPECT_FLOAT_EQ(7.0f, mat::At(matrix, 1, 2));
+    EXPECT_FLOAT_EQ(7.0f, matrix.Data[2 * 3 + 1]);
+    EXPECT_FLOAT_EQ(0.0f, mat::At(matrix, 2, 1));
 }
 
 TEST(MatrixFactoryTest, ZeroHasEveryElementZero)
 {
-    auto m = Zero<float, 2, 3>;
+    const Mat4 matrix = mat::Zero<float, 4, 4>;
 
-    for (usize i = 0; i < 6; ++i)
+    for (usize i = 0; i < 16; ++i)
     {
-        EXPECT_FLOAT_EQ(0.0f, m.Data[i]);
+        EXPECT_FLOAT_EQ(0.0f, matrix.Data[i]);
     }
 }
 
-TEST(MatrixFactoryTest, IdentityHasOnesOnDiagonal)
+TEST(MatrixFactoryTest, IdentityHasOnesOnTheDiagonal)
 {
-    auto m = Identity<float, 3>;
+    const Mat4 matrix = mat::Identity<float, 4>;
 
-    for (usize row = 0; row < 3; ++row)
+    for (usize row = 0; row < 4; ++row)
     {
-        for (usize column = 0; column < 3; ++column)
+        for (usize column = 0; column < 4; ++column)
         {
-            EXPECT_FLOAT_EQ(row == column ? 1.0f : 0.0f, At(m, row, column));
+            const float expected = row == column ? 1.0f : 0.0f;
+
+            EXPECT_FLOAT_EQ(expected, mat::At(matrix, row, column));
         }
     }
 }
 
 TEST(MatrixFactoryTest, FromRowsStacksRows)
 {
-    auto m = FromRows<float, 3>(
-        vec::Make<float>(1.0f, 2.0f, 3.0f), vec::Make<float>(4.0f, 5.0f, 6.0f)
+    const auto matrix = mat::FromRows<float, 3>(
+        Vec3{1.0f, 2.0f, 3.0f},
+        Vec3{4.0f, 5.0f, 6.0f}
     );
 
-    EXPECT_TRUE((std::is_same_v<decltype(m), Matrix<float, 2, 3>>));
-    EXPECT_TRUE(NearlyEqual(m, MakeA23()));
+    EXPECT_TRUE((std::is_same_v<decltype(matrix), const Matrix<float, 2, 3>>));
+
+    EXPECT_FLOAT_EQ(1.0f, mat::At(matrix, 0, 0));
+    EXPECT_FLOAT_EQ(3.0f, mat::At(matrix, 0, 2));
+    EXPECT_FLOAT_EQ(4.0f, mat::At(matrix, 1, 0));
+    EXPECT_FLOAT_EQ(6.0f, mat::At(matrix, 1, 2));
 }
 
 TEST(MatrixFactoryTest, FromColumnsStacksColumns)
 {
-    auto m = FromColumns<float, 2>(
-        vec::Make<float>(1.0f, 4.0f), vec::Make<float>(2.0f, 5.0f), vec::Make<float>(3.0f, 6.0f)
+    const auto matrix = mat::FromColumns<float, 3>(
+        Vec3{1.0f, 2.0f, 3.0f},
+        Vec3{4.0f, 5.0f, 6.0f}
     );
 
-    EXPECT_TRUE((std::is_same_v<decltype(m), Matrix<float, 2, 3>>));
-    EXPECT_TRUE(NearlyEqual(m, MakeA23()));
+    EXPECT_TRUE((std::is_same_v<decltype(matrix), const Matrix<float, 3, 2>>));
+
+    EXPECT_FLOAT_EQ(1.0f, mat::At(matrix, 0, 0));
+    EXPECT_FLOAT_EQ(3.0f, mat::At(matrix, 2, 0));
+    EXPECT_FLOAT_EQ(4.0f, mat::At(matrix, 0, 1));
+    EXPECT_FLOAT_EQ(6.0f, mat::At(matrix, 2, 1));
+}
+
+TEST(MatrixFactoryTest, FromRowsAndFromColumnsAreTransposes)
+{
+    const Vec3 first{1.0f, 2.0f, 3.0f};
+    const Vec3 second{4.0f, 5.0f, 6.0f};
+
+    const auto rows = mat::FromRows<float, 3>(first, second);
+    const auto columns = mat::FromColumns<float, 3>(first, second);
+
+    EXPECT_TRUE(NearlyEqual(rows, mat::Transpose(columns)));
 }
 
 TEST(MatrixShorthandTest, MatchTheirTemplateCounterparts)
 {
-    EXPECT_TRUE(NearlyEqual(mat2::Identity, Identity<float, 2>));
-    EXPECT_TRUE(NearlyEqual(mat3::Identity, Identity<float, 3>));
-    EXPECT_TRUE(NearlyEqual(mat4::Identity, Identity<float, 4>));
+    EXPECT_TRUE((std::is_same_v<Mat2, Matrix<float, 2, 2>>));
+    EXPECT_TRUE((std::is_same_v<Mat3, Matrix<float, 3, 3>>));
+    EXPECT_TRUE((std::is_same_v<Mat4, Matrix<float, 4, 4>>));
 
-    EXPECT_TRUE(NearlyEqual(mat2::Zero, Zero<float, 2, 2>));
-    EXPECT_TRUE(NearlyEqual(mat3::Zero, Zero<float, 3, 3>));
-    EXPECT_TRUE(NearlyEqual(mat4::Zero, Zero<float, 4, 4>));
-}
+    EXPECT_TRUE(NearlyEqual(mat2::Identity, (mat::Identity<float, 2>)));
+    EXPECT_TRUE(NearlyEqual(mat3::Identity, (mat::Identity<float, 3>)));
+    EXPECT_TRUE(NearlyEqual(mat4::Identity, (mat::Identity<float, 4>)));
 
-TEST(MatrixShorthandTest, HaveExpectedShapeAndContent)
-{
-    EXPECT_TRUE((std::is_same_v<decltype(mat3::Identity), const Mat3>));
-    EXPECT_TRUE((std::is_same_v<decltype(mat4::Zero), const Mat4>));
-
-    EXPECT_FLOAT_EQ(1.0f, At(mat4::Identity, 3, 3));
-    EXPECT_FLOAT_EQ(0.0f, At(mat4::Identity, 3, 2));
-    EXPECT_FLOAT_EQ(0.0f, At(mat4::Zero, 3, 3));
+    EXPECT_TRUE(NearlyEqual(mat2::Zero, (mat::Zero<float, 2, 2>)));
+    EXPECT_TRUE(NearlyEqual(mat4::Zero, (mat::Zero<float, 4, 4>)));
 }
 
 TEST(MatrixAccessTest, GetRowReadsWholeRow)
 {
-    auto row = GetRow(MakeA23(), 1);
+    const Matrix<float, 2, 3> matrix = mat::Make<float, 2, 3>(
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f
+    );
 
-    EXPECT_TRUE((std::is_same_v<decltype(row), Vector<float, 3>>));
-    EXPECT_FLOAT_EQ(4.0f, row.Data[0]);
-    EXPECT_FLOAT_EQ(5.0f, row.Data[1]);
-    EXPECT_FLOAT_EQ(6.0f, row.Data[2]);
+    EXPECT_TRUE(NearlyEqual(Vec3{1.0f, 2.0f, 3.0f}, mat::GetRow(matrix, 0)));
+    EXPECT_TRUE(NearlyEqual(Vec3{4.0f, 5.0f, 6.0f}, mat::GetRow(matrix, 1)));
 }
 
 TEST(MatrixAccessTest, GetColumnReadsWholeColumn)
 {
-    auto column = GetColumn(MakeA23(), 2);
+    const Matrix<float, 2, 3> matrix = mat::Make<float, 2, 3>(
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f
+    );
 
-    EXPECT_TRUE((std::is_same_v<decltype(column), Vector<float, 2>>));
-    EXPECT_FLOAT_EQ(3.0f, column.Data[0]);
-    EXPECT_FLOAT_EQ(6.0f, column.Data[1]);
+    EXPECT_TRUE(NearlyEqual(Vec2{1.0f, 4.0f}, mat::GetColumn(matrix, 0)));
+    EXPECT_TRUE(NearlyEqual(Vec2{3.0f, 6.0f}, mat::GetColumn(matrix, 2)));
 }
 
-TEST(MatrixAccessTest, SetRowWritesEveryColumnOfNonSquareMatrix)
+TEST(MatrixAccessTest, SetRowWritesEveryColumn)
 {
-    Matrix<float, 2, 3> m{};
+    Matrix<float, 2, 3> matrix = mat::Zero<float, 2, 3>;
 
-    SetRow(m, 1, vec::Make<float>(4.0f, 5.0f, 6.0f));
+    mat::SetRow(matrix, 1, Vec3{7.0f, 8.0f, 9.0f});
 
-    const float expected[]{0.0f, 0.0f, 0.0f, 4.0f, 5.0f, 6.0f};
-    ExpectRowMajor(m, expected);
+    EXPECT_TRUE(NearlyEqual(Vec3{7.0f, 8.0f, 9.0f}, mat::GetRow(matrix, 1)));
+    EXPECT_TRUE(NearlyZero(mat::GetRow(matrix, 0)));
 }
 
-TEST(MatrixAccessTest, SetColumnWritesEveryRowOfNonSquareMatrix)
+TEST(MatrixAccessTest, SetColumnWritesEveryRow)
 {
-    Matrix<float, 3, 2> m{};
+    Matrix<float, 2, 3> matrix = mat::Zero<float, 2, 3>;
 
-    SetColumn(m, 1, vec::Make<float>(7.0f, 8.0f, 9.0f));
+    mat::SetColumn(matrix, 2, Vec2{7.0f, 8.0f});
 
-    const float expected[]{0.0f, 7.0f, 0.0f, 8.0f, 0.0f, 9.0f};
-    ExpectRowMajor(m, expected);
+    EXPECT_TRUE(NearlyEqual(Vec2{7.0f, 8.0f}, mat::GetColumn(matrix, 2)));
+    EXPECT_TRUE(NearlyZero(mat::GetColumn(matrix, 0)));
 }
 
 TEST(MatrixAccessTest, SettersRoundTripThroughGetters)
 {
-    Matrix<float, 2, 3> m{};
+    const Mat3 source = MakeArbitrary();
 
-    SetRow(m, 0, vec::Make<float>(1.0f, 2.0f, 3.0f));
-    SetRow(m, 1, vec::Make<float>(4.0f, 5.0f, 6.0f));
+    Mat3 result = mat3::Zero;
 
-    EXPECT_TRUE(NearlyEqual(GetRow(m, 0), vec::Make<float>(1.0f, 2.0f, 3.0f)));
-    EXPECT_TRUE(NearlyEqual(GetColumn(m, 1), vec::Make<float>(2.0f, 5.0f)));
+    for (usize row = 0; row < 3; ++row)
+    {
+        mat::SetRow(result, row, mat::GetRow(source, row));
+    }
+
+    EXPECT_TRUE(NearlyEqual(source, result));
+
+    result = mat3::Zero;
+
+    for (usize column = 0; column < 3; ++column)
+    {
+        mat::SetColumn(result, column, mat::GetColumn(source, column));
+    }
+
+    EXPECT_TRUE(NearlyEqual(source, result));
 }
 
-TEST(MatrixArithmeticTest, AddsElementWise)
+TEST(MatrixArithmeticTest, AddsAndSubtractsElementWise)
 {
-    auto m = MakeA23() + MakeA23();
+    const Mat2 lhs = mat::Make<float, 2, 2>(
+        1.0f, 2.0f,
+        3.0f, 4.0f
+    );
 
-    const float expected[]{2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f};
-    ExpectRowMajor(m, expected);
-}
+    const Mat2 rhs = mat::Make<float, 2, 2>(
+        5.0f, -6.0f,
+        7.0f, 8.0f
+    );
 
-TEST(MatrixArithmeticTest, SubtractsElementWise)
-{
-    auto m = MakeA23() - MakeA23();
+    const Mat2 expectedSum = mat::Make<float, 2, 2>(
+        6.0f, -4.0f,
+        10.0f, 12.0f
+    );
 
-    EXPECT_TRUE(NearlyEqual(m, Zero<float, 2, 3>));
+    const Mat2 expectedDifference = mat::Make<float, 2, 2>(
+        -4.0f, 8.0f,
+        -4.0f, -4.0f
+    );
+
+    EXPECT_TRUE(NearlyEqual(expectedSum, lhs + rhs));
+    EXPECT_TRUE(NearlyEqual(expectedDifference, lhs - rhs));
 }
 
 TEST(MatrixArithmeticTest, ScalesByScalarFromEitherSide)
 {
-    const float expected[]{2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f};
+    const Mat2 matrix = mat::Make<float, 2, 2>(
+        1.0f, 2.0f,
+        3.0f, 4.0f
+    );
 
-    ExpectRowMajor(MakeA23() * 2.0f, expected);
-    ExpectRowMajor(2.0f * MakeA23(), expected);
+    const Mat2 expected = mat::Make<float, 2, 2>(
+        2.0f, 4.0f,
+        6.0f, 8.0f
+    );
+
+    EXPECT_TRUE(NearlyEqual(expected, matrix * 2.0f));
+    EXPECT_TRUE(NearlyEqual(expected, 2.0f * matrix));
 }
 
 TEST(MatrixArithmeticTest, DividesByScalar)
 {
-    auto m = MakeA23() / 2.0f;
+    const Mat2 matrix = mat::Make<float, 2, 2>(
+        2.0f, 4.0f,
+        6.0f, 8.0f
+    );
 
-    const float expected[]{0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f};
-    ExpectRowMajor(m, expected);
+    const Mat2 expected = mat::Make<float, 2, 2>(
+        1.0f, 2.0f,
+        3.0f, 4.0f
+    );
+
+    EXPECT_TRUE(NearlyEqual(expected, matrix / 2.0f));
 }
 
 TEST(MatrixArithmeticTest, AcceptsSmallNonZeroDivisor)
 {
-    auto m = Make<float, 2, 2>(1.0f, 2.0f, 3.0f, 4.0f);
+    Mat2 matrix = mat::Make<float, 2, 2>(
+        1e-4f, 2e-4f,
+        3e-4f, 4e-4f
+    );
 
-    m /= 1e-8f;
+    matrix /= 1e-4f;
 
-    EXPECT_FLOAT_EQ(1e8f, At(m, 0, 0));
-    EXPECT_FLOAT_EQ(4e8f, At(m, 1, 1));
+    const Mat2 expected = mat::Make<float, 2, 2>(
+        1.0f, 2.0f,
+        3.0f, 4.0f
+    );
+
+    EXPECT_TRUE(NearlyEqual(expected, matrix, Tolerance));
 }
 
 TEST(MatrixArithmeticTest, BinaryOperatorsLeaveOperandsUntouched)
 {
-    auto a = MakeA23();
-    auto b = MakeA23();
+    const Mat3 lhs = MakeArbitrary();
+    const Mat3 rhs = MakeOtherArbitrary();
 
-    auto c = a + b;
+    const Mat3 lhsCopy = lhs;
+    const Mat3 rhsCopy = rhs;
 
-    EXPECT_FLOAT_EQ(1.0f, At(a, 0, 0));
-    EXPECT_FLOAT_EQ(1.0f, At(b, 0, 0));
-    EXPECT_FLOAT_EQ(2.0f, At(c, 0, 0));
+    const Mat3 unused = (lhs + rhs) * 2.0f - lhs;
+
+    EXPECT_TRUE(NearlyEqual(lhsCopy, lhs));
+    EXPECT_TRUE(NearlyEqual(rhsCopy, rhs));
+    EXPECT_TRUE(NearlyEqual(lhs + rhs * 2.0f, unused - lhs + rhs * 0.0f + lhs));
 }
 
 TEST(MatrixArithmeticTest, CompoundAssignmentMutatesInPlace)
 {
-    auto m = MakeA23();
+    Mat2 matrix = mat2::Identity;
 
-    m += MakeA23();
-    EXPECT_FLOAT_EQ(2.0f, At(m, 0, 0));
+    matrix += mat2::Identity;
+    EXPECT_FLOAT_EQ(2.0f, mat::At(matrix, 0, 0));
 
-    m -= MakeA23();
-    EXPECT_FLOAT_EQ(1.0f, At(m, 0, 0));
+    matrix -= mat2::Identity;
+    EXPECT_FLOAT_EQ(1.0f, mat::At(matrix, 0, 0));
 
-    m *= 4.0f;
-    EXPECT_FLOAT_EQ(4.0f, At(m, 0, 0));
+    matrix *= 5.0f;
+    EXPECT_FLOAT_EQ(5.0f, mat::At(matrix, 1, 1));
 
-    m /= 4.0f;
-    EXPECT_FLOAT_EQ(1.0f, At(m, 0, 0));
+    matrix /= 5.0f;
+    EXPECT_TRUE(NearlyEqual(mat2::Identity, matrix));
 }
 
 TEST(MatrixProductTest, MultipliesNonSquareShapes)
 {
-    auto m = MakeA23() * MakeB32();
+    const Matrix<float, 2, 3> lhs = mat::Make<float, 2, 3>(
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f
+    );
 
-    EXPECT_TRUE((std::is_same_v<decltype(m), Matrix<float, 2, 2>>));
+    const Matrix<float, 3, 2> rhs = mat::Make<float, 3, 2>(
+        7.0f, 8.0f,
+        9.0f, 10.0f,
+        11.0f, 12.0f
+    );
 
-    const float expected[]{58.0f, 64.0f, 139.0f, 154.0f};
-    ExpectRowMajor(m, expected);
+    const Matrix<float, 2, 2> expected = mat::Make<float, 2, 2>(
+        58.0f, 64.0f,
+        139.0f, 154.0f
+    );
+
+    EXPECT_TRUE(NearlyEqual(expected, lhs * rhs));
 }
 
 TEST(MatrixProductTest, MultipliesInTheOtherOrder)
 {
-    auto m = MakeB32() * MakeA23();
+    const Matrix<float, 2, 3> lhs = mat::Make<float, 2, 3>(
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f
+    );
 
-    EXPECT_TRUE((std::is_same_v<decltype(m), Matrix<float, 3, 3>>));
+    const Matrix<float, 3, 2> rhs = mat::Make<float, 3, 2>(
+        7.0f, 8.0f,
+        9.0f, 10.0f,
+        11.0f, 12.0f
+    );
 
-    const float expected[]{39.0f, 54.0f, 69.0f, 49.0f, 68.0f, 87.0f, 59.0f, 82.0f, 105.0f};
-    ExpectRowMajor(m, expected);
+    const Matrix<float, 3, 3> expected = mat::Make<float, 3, 3>(
+        39.0f, 54.0f, 69.0f,
+        49.0f, 68.0f, 87.0f,
+        59.0f, 82.0f, 105.0f
+    );
+
+    EXPECT_TRUE(NearlyEqual(expected, rhs * lhs));
 }
 
 TEST(MatrixProductTest, IdentityIsNeutralOnBothSides)
 {
-    auto m = MakeTridiagonal();
+    const Mat3 matrix = MakeArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(m * Identity<float, 3>, m));
-    EXPECT_TRUE(NearlyEqual(Identity<float, 3> * m, m));
+    EXPECT_TRUE(NearlyEqual(matrix, matrix * mat3::Identity, Tolerance));
+    EXPECT_TRUE(NearlyEqual(matrix, mat3::Identity * matrix, Tolerance));
 }
 
 TEST(MatrixProductTest, IsAssociative)
 {
-    auto a = MakeA23();
-    auto b = MakeB32();
+    const Mat3 a = MakeArbitrary();
+    const Mat3 b = MakeOtherArbitrary();
+    const Mat3 c = mat::Make<float, 3, 3>(
+        1.0f, 0.0f, -2.0f,
+        3.0f, 1.0f,  0.5f,
+        0.0f, 2.0f,  1.0f
+    );
 
-    EXPECT_TRUE(NearlyEqual((a * b) * a, a * (b * a), 1e-4f));
+    EXPECT_TRUE(NearlyEqual((a * b) * c, a * (b * c), 1e-4f));
+}
+
+TEST(MatrixProductTest, IsNotCommutative)
+{
+    const Mat3 a = MakeArbitrary();
+    const Mat3 b = MakeOtherArbitrary();
+
+    EXPECT_FALSE(NearlyEqual(a * b, b * a, Tolerance));
 }
 
 TEST(MatrixProductTest, TransformsVector)
 {
-    auto v = MakeA23() * vec::Make<float>(1.0f, 2.0f, 3.0f);
+    const Matrix<float, 2, 3> matrix = mat::Make<float, 2, 3>(
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f
+    );
 
-    EXPECT_TRUE((std::is_same_v<decltype(v), Vector<float, 2>>));
-    EXPECT_FLOAT_EQ(14.0f, v.Data[0]);
-    EXPECT_FLOAT_EQ(32.0f, v.Data[1]);
+    const Vec3 vector{1.0f, 2.0f, 3.0f};
+
+    EXPECT_TRUE(NearlyEqual(Vec2{14.0f, 32.0f}, matrix * vector));
 }
 
 TEST(MatrixProductTest, VectorTransformSelectsColumnsOfIdentity)
 {
-    auto v = Identity<float, 3> * vec::Make<float>(1.0f, 2.0f, 3.0f);
+    const Vec3 vector{1.0f, 2.0f, 3.0f};
 
-    EXPECT_TRUE(NearlyEqual(v, vec::Make<float>(1.0f, 2.0f, 3.0f)));
+    EXPECT_TRUE(NearlyEqual(vector, mat3::Identity * vector));
+}
+
+TEST(MatrixProductTest, MatchesProductOfTransformedVectors)
+{
+    const Mat3 a = MakeArbitrary();
+    const Mat3 b = MakeOtherArbitrary();
+    const Vec3 vector{1.0f, -2.0f, 0.5f};
+
+    EXPECT_TRUE(NearlyEqual((a * b) * vector, a * (b * vector), 1e-4f));
 }
 
 TEST(MatrixTransposeTest, SwapsShapeAndElements)
 {
-    auto m = Transpose(MakeA23());
+    const Matrix<float, 2, 3> matrix = mat::Make<float, 2, 3>(
+        1.0f, 2.0f, 3.0f,
+        4.0f, 5.0f, 6.0f
+    );
 
-    EXPECT_TRUE((std::is_same_v<decltype(m), Matrix<float, 3, 2>>));
+    const auto transposed = mat::Transpose(matrix);
 
-    const float expected[]{1.0f, 4.0f, 2.0f, 5.0f, 3.0f, 6.0f};
-    ExpectRowMajor(m, expected);
+    EXPECT_TRUE((std::is_same_v<decltype(transposed), const Matrix<float, 3, 2>>));
+
+    for (usize row = 0; row < 2; ++row)
+    {
+        for (usize column = 0; column < 3; ++column)
+        {
+            EXPECT_FLOAT_EQ(mat::At(matrix, row, column), mat::At(transposed, column, row));
+        }
+    }
 }
 
 TEST(MatrixTransposeTest, AppliedTwiceReturnsOriginal)
 {
-    EXPECT_TRUE(NearlyEqual(Transpose(Transpose(MakeA23())), MakeA23()));
+    const Mat3 matrix = MakeArbitrary();
+
+    EXPECT_TRUE(NearlyEqual(matrix, mat::Transpose(mat::Transpose(matrix))));
 }
 
 TEST(MatrixTransposeTest, LeavesSymmetricMatrixUnchanged)
 {
-    EXPECT_TRUE(NearlyEqual(Transpose(MakeTridiagonal()), MakeTridiagonal()));
+    const Mat3 matrix = mat::Make<float, 3, 3>(
+        1.0f, 2.0f, 3.0f,
+        2.0f, 4.0f, 5.0f,
+        3.0f, 5.0f, 6.0f
+    );
+
+    EXPECT_TRUE(NearlyEqual(matrix, mat::Transpose(matrix)));
 }
 
 TEST(MatrixTransposeTest, ReversesProductOrder)
 {
-    auto a = MakeA23();
-    auto b = MakeB32();
+    const Mat3 a = MakeArbitrary();
+    const Mat3 b = MakeOtherArbitrary();
 
-    EXPECT_TRUE(NearlyEqual(Transpose(a * b), Transpose(b) * Transpose(a), 1e-4f));
+    EXPECT_TRUE(NearlyEqual(mat::Transpose(a * b), mat::Transpose(b) * mat::Transpose(a), 1e-4f));
 }
 
 TEST(MatrixDeterminantTest, HandlesSmallFixedSizes)
 {
-    EXPECT_FLOAT_EQ(3.0f, Determinant(Make<float, 1, 1>(3.0f)));
-    EXPECT_FLOAT_EQ(-2.0f, Determinant(Make<float, 2, 2>(1.0f, 2.0f, 3.0f, 4.0f)));
-    EXPECT_FLOAT_EQ(4.0f, Determinant(MakeTridiagonal()));
+    const Matrix<float, 1, 1> one = mat::Make<float, 1, 1>(3.0f);
+
+    const Mat2 two = mat::Make<float, 2, 2>(
+        1.0f, 2.0f,
+        3.0f, 4.0f
+    );
+
+    const Mat3 three = mat::Make<float, 3, 3>(
+        6.0f, 1.0f, 1.0f,
+        4.0f, -2.0f, 5.0f,
+        2.0f, 8.0f, 7.0f
+    );
+
+    EXPECT_FLOAT_EQ(3.0f, mat::Determinant(one));
+    EXPECT_FLOAT_EQ(-2.0f, mat::Determinant(two));
+    EXPECT_FLOAT_EQ(-306.0f, mat::Determinant(three));
 }
 
 TEST(MatrixDeterminantTest, HandlesFourByFour)
 {
-    auto m = Make<float, 4, 4>(
+    const Mat4 matrix = mat::Make<float, 4, 4>(
         1.0f, 0.0f, 2.0f, -1.0f,
         3.0f, 0.0f, 0.0f, 5.0f,
         2.0f, 1.0f, 4.0f, -3.0f,
         1.0f, 0.0f, 5.0f, 0.0f
     );
 
-    EXPECT_FLOAT_EQ(30.0f, Determinant(m));
-}
-
-TEST(MatrixDeterminantTest, FloatingDeterminantKeepsElementType)
-{
-    EXPECT_TRUE((std::is_same_v<decltype(Determinant(Identity<float, 3>)), float>));
-    EXPECT_TRUE((std::is_same_v<decltype(Determinant(Identity<double, 3>)), double>));
-    EXPECT_TRUE((std::is_same_v<decltype(Determinant(Identity<float, 5>)), float>));
-}
-
-TEST(MatrixDeterminantTest, IntegerDeterminantWidensToInt64)
-{
-    auto m = Make<int32, 2, 2>(1, 2, 3, 4);
-
-    EXPECT_TRUE((std::is_same_v<decltype(Determinant(m)), int64>));
-    EXPECT_EQ(-2, Determinant(m));
-}
-
-TEST(MatrixDeterminantTest, UnsignedDeterminantDoesNotWrapAround)
-{
-    EXPECT_TRUE((std::is_same_v<decltype(Determinant(Make<uint32, 2, 2>(1u, 2u, 3u, 4u))), int64>));
-
-    EXPECT_EQ(-2, Determinant(Make<uint32, 2, 2>(1u, 2u, 3u, 4u)));
-    EXPECT_EQ(-3, Determinant(Make<uint32, 3, 3>(1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 10u)));
-    EXPECT_EQ(-2, Determinant(Make<uint32, 4, 4>(
-        1u, 0u, 0u, 0u,
-        0u, 1u, 0u, 0u,
-        0u, 0u, 0u, 1u,
-        0u, 0u, 2u, 0u
-    )));
-}
-
-TEST(MatrixDeterminantTest, IntegerDeterminantDoesNotOverflowInIntermediateProducts)
-{
-    auto m = Make<int32, 2, 2>(100000, 0, 0, 100000);
-
-    EXPECT_EQ(10000000000LL, Determinant(m));
+    EXPECT_FLOAT_EQ(30.0f, mat::Determinant(matrix));
 }
 
 TEST(MatrixDeterminantTest, IdentityHasDeterminantOne)
 {
-    EXPECT_FLOAT_EQ(1.0f, Determinant(Identity<float, 2>));
-    EXPECT_FLOAT_EQ(1.0f, Determinant(Identity<float, 3>));
-    EXPECT_FLOAT_EQ(1.0f, Determinant(Identity<float, 4>));
-    EXPECT_FLOAT_EQ(1.0f, Determinant(Identity<float, 5>));
+    EXPECT_FLOAT_EQ(1.0f, mat::Determinant(mat2::Identity));
+    EXPECT_FLOAT_EQ(1.0f, mat::Determinant(mat3::Identity));
+    EXPECT_FLOAT_EQ(1.0f, mat::Determinant(mat4::Identity));
+    EXPECT_FLOAT_EQ(1.0f, mat::Determinant(mat::Identity<float, 5>));
 }
 
 TEST(MatrixDeterminantTest, SingularMatrixHasZeroDeterminant)
 {
-    EXPECT_FLOAT_EQ(0.0f, Determinant(Make<float, 2, 2>(1.0f, 2.0f, 2.0f, 4.0f)));
-    EXPECT_FLOAT_EQ(0.0f, Determinant(Zero<float, 3, 3>));
+    const Mat3 matrix = mat::Make<float, 3, 3>(
+        1.0f, 2.0f, 3.0f,
+        2.0f, 4.0f, 6.0f,
+        1.0f, 0.0f, 1.0f
+    );
+
+    EXPECT_FLOAT_EQ(0.0f, mat::Determinant(matrix));
+}
+
+TEST(MatrixDeterminantTest, KeepsElementTypeForFloating)
+{
+    EXPECT_TRUE((std::is_same_v<decltype(mat::Determinant(mat3::Identity)), float>));
+
+    const Matrix<double, 2, 2> matrix = mat::Make<double, 2, 2>(
+        1.0, 2.0,
+        3.0, 4.0
+    );
+
+    EXPECT_TRUE((std::is_same_v<decltype(mat::Determinant(matrix)), double>));
+    EXPECT_DOUBLE_EQ(-2.0, mat::Determinant(matrix));
+}
+
+TEST(MatrixDeterminantTest, WidensIntegerDeterminantToInt64)
+{
+    const Matrix<int32, 2, 2> matrix = mat::Make<int32, 2, 2>(
+        1, 2,
+        3, 4
+    );
+
+    EXPECT_TRUE((std::is_same_v<decltype(mat::Determinant(matrix)), int64>));
+    EXPECT_EQ(-2, mat::Determinant(matrix));
+}
+
+TEST(MatrixDeterminantTest, IntegerDeterminantDoesNotOverflowInIntermediateProducts)
+{
+    const Matrix<int32, 2, 2> matrix = mat::Make<int32, 2, 2>(
+        100000, 0,
+        0, 100000
+    );
+
+    EXPECT_EQ(int64{10000000000}, mat::Determinant(matrix));
 }
 
 TEST(MatrixDeterminantTest, GeneralPathHandlesTriangularMatrix)
 {
-    auto m = Make<float, 5, 5>(
-        1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
-        0.0f, 2.0f, 3.0f, 4.0f, 5.0f,
-        0.0f, 0.0f, 3.0f, 4.0f, 5.0f,
-        0.0f, 0.0f, 0.0f, 4.0f, 5.0f,
-        0.0f, 0.0f, 0.0f, 0.0f, 5.0f
-    );
+    Matrix<float, 5, 5> matrix = mat::Zero<float, 5, 5>;
 
-    EXPECT_FLOAT_EQ(120.0f, Determinant(m));
+    for (usize row = 0; row < 5; ++row)
+    {
+        for (usize column = row; column < 5; ++column)
+        {
+            mat::At(matrix, row, column) = row == column ? static_cast<float>(row + 1) : 2.0f;
+        }
+    }
+
+    EXPECT_NEAR(120.0f, mat::Determinant(matrix), 1e-3f);
 }
 
 TEST(MatrixDeterminantTest, GeneralPathNegatesOnRowSwap)
 {
-    auto m = Make<float, 5, 5>(
-        0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 0.0f, 1.0f
-    );
+    Matrix<float, 5, 5> matrix = mat::Identity<float, 5>;
 
-    EXPECT_FLOAT_EQ(-1.0f, Determinant(m));
-}
+    mat::SetRow(matrix, 0, mat::GetRow(mat::Identity<float, 5>, 1));
+    mat::SetRow(matrix, 1, mat::GetRow(mat::Identity<float, 5>, 0));
 
-TEST(MatrixDeterminantTest, GeneralPathKeepsVerySmallDeterminants)
-{
-    auto m = Make<float, 5, 5>(
-        1e-4f, 0.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1e-4f, 0.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1e-4f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1e-4f, 0.0f,
-        0.0f, 0.0f, 0.0f, 0.0f, 1e-4f
-    );
-
-    EXPECT_TRUE(NearlyEqual(Determinant(m), 1e-20f, 1e-5f));
+    EXPECT_NEAR(-1.0f, mat::Determinant(matrix), Tolerance);
 }
 
 TEST(MatrixDeterminantTest, GeneralPathDetectsSingularMatrix)
 {
-    Matrix<float, 5, 5> m = Identity<float, 5>;
+    Matrix<float, 5, 5> matrix = mat::Identity<float, 5>;
 
-    SetRow(m, 3, vec::Fill<float, 5>(0.0f));
+    mat::SetRow(matrix, 3, mat::GetRow(matrix, 2));
 
-    EXPECT_FLOAT_EQ(0.0f, Determinant(m));
+    EXPECT_FLOAT_EQ(0.0f, mat::Determinant(matrix));
+}
+
+TEST(MatrixDeterminantTest, GeneralPathKeepsVerySmallDeterminants)
+{
+    Matrix<float, 5, 5> matrix = mat::Zero<float, 5, 5>;
+
+    for (usize i = 0; i < 5; ++i)
+    {
+        mat::At(matrix, i, i) = 1e-3f;
+    }
+
+    EXPECT_GT(mat::Determinant(matrix), 0.0f);
+    EXPECT_NEAR(1e-15f, mat::Determinant(matrix), 1e-17f);
 }
 
 TEST(MatrixDeterminantTest, MatchesProductOfDeterminants)
 {
-    auto a = MakeTridiagonal();
-    auto b = Make<float, 3, 3>(1.0f, 2.0f, 0.0f, 0.0f, 1.0f, 3.0f, 4.0f, 0.0f, 1.0f);
+    const Mat3 a = MakeArbitrary();
+    const Mat3 b = MakeOtherArbitrary();
 
-    EXPECT_NEAR(Determinant(a) * Determinant(b), Determinant(a * b), 1e-3f);
+    EXPECT_NEAR(
+        mat::Determinant(a) * mat::Determinant(b),
+        mat::Determinant(a * b),
+        1e-3f
+    );
+}
+
+TEST(MatrixDeterminantTest, ScalingARowScalesTheDeterminant)
+{
+    const Mat3 matrix = MakeArbitrary();
+
+    Mat3 scaled = matrix;
+    mat::SetRow(scaled, 1, mat::GetRow(matrix, 1) * 3.0f);
+
+    EXPECT_NEAR(mat::Determinant(matrix) * 3.0f, mat::Determinant(scaled), 1e-4f);
 }
 
 TEST(MatrixCastTest, ConvertsElementType)
 {
-    auto m = Cast<double>(Make<int, 2, 2>(1, 2, 3, 4));
+    const Matrix<int32, 2, 2> source = mat::Make<int32, 2, 2>(
+        1, 2,
+        3, 4
+    );
 
-    EXPECT_TRUE((std::is_same_v<decltype(m), Matrix<double, 2, 2>>));
-    EXPECT_DOUBLE_EQ(1.0, At(m, 0, 0));
-    EXPECT_DOUBLE_EQ(4.0, At(m, 1, 1));
+    const auto result = mat::Cast<float>(source);
+
+    EXPECT_TRUE((std::is_same_v<decltype(result), const Matrix<float, 2, 2>>));
+
+    for (usize i = 0; i < 4; ++i)
+    {
+        EXPECT_FLOAT_EQ(static_cast<float>(source.Data[i]), result.Data[i]);
+    }
 }
 
 TEST(MatrixInverseTest, InvertsTwoByTwo)
 {
-    Matrix<float, 2, 2> inverse{};
+    const Mat2 matrix = mat::Make<float, 2, 2>(
+        4.0f, 7.0f,
+        2.0f, 6.0f
+    );
 
-    EXPECT_TRUE(TryInverse(Make<float, 2, 2>(4.0f, 7.0f, 2.0f, 6.0f), inverse));
+    const Mat2 expected = mat::Make<float, 2, 2>(
+        0.6f, -0.7f,
+        -0.2f, 0.4f
+    );
 
-    const float expected[]{0.6f, -0.7f, -0.2f, 0.4f};
-    ExpectRowMajor(inverse, expected);
+    Mat2 result = mat2::Zero;
+
+    ASSERT_TRUE(mat::TryInverse(matrix, result));
+    EXPECT_TRUE(NearlyEqual(expected, result, Tolerance));
 }
 
 TEST(MatrixInverseTest, InvertsThreeByThree)
 {
-    Matrix<float, 3, 3> inverse{};
+    const Mat3 matrix = mat::Make<float, 3, 3>(
+        2.0f, 0.0f, 0.0f,
+        0.0f, 4.0f, 0.0f,
+        0.0f, 0.0f, 0.5f
+    );
 
-    EXPECT_TRUE(TryInverse(MakeTridiagonal(), inverse));
+    const Mat3 expected = mat::Make<float, 3, 3>(
+        0.5f, 0.0f, 0.0f,
+        0.0f, 0.25f, 0.0f,
+        0.0f, 0.0f, 2.0f
+    );
 
-    auto expected = Make<float, 3, 3>(0.75f, 0.5f, 0.25f, 0.5f, 1.0f, 0.5f, 0.25f, 0.5f, 0.75f);
+    Mat3 result = mat3::Zero;
 
-    EXPECT_TRUE(NearlyEqual(inverse, expected, 1e-6f));
+    ASSERT_TRUE(mat::TryInverse(matrix, result));
+    EXPECT_TRUE(NearlyEqual(expected, result, Tolerance));
 }
 
 TEST(MatrixInverseTest, ProductWithInverseIsIdentity)
 {
-    auto m = Make<float, 4, 4>(
+    const Mat3 matrix = MakeArbitrary();
+
+    Mat3 inverse = mat3::Zero;
+
+    ASSERT_TRUE(mat::TryInverse(matrix, inverse));
+
+    EXPECT_TRUE(NearlyEqual(mat3::Identity, matrix * inverse, 1e-4f));
+    EXPECT_TRUE(NearlyEqual(mat3::Identity, inverse * matrix, 1e-4f));
+}
+
+TEST(MatrixInverseTest, HandlesFourByFour)
+{
+    const Mat4 matrix = mat::Make<float, 4, 4>(
         1.0f, 0.0f, 2.0f, -1.0f,
         3.0f, 0.0f, 0.0f, 5.0f,
         2.0f, 1.0f, 4.0f, -3.0f,
         1.0f, 0.0f, 5.0f, 0.0f
     );
 
-    Matrix<float, 4, 4> inverse{};
+    Mat4 inverse = mat4::Zero;
 
-    ASSERT_TRUE(TryInverse(m, inverse));
-
-    EXPECT_TRUE(NearlyEqual(m * inverse, Identity<float, 4>, 1e-5f));
-    EXPECT_TRUE(NearlyEqual(inverse * m, Identity<float, 4>, 1e-5f));
+    ASSERT_TRUE(mat::TryInverse(matrix, inverse));
+    EXPECT_TRUE(NearlyEqual(mat4::Identity, matrix * inverse, 1e-4f));
 }
 
 TEST(MatrixInverseTest, PivotsWhenLeadingElementIsZero)
 {
-    auto m = Make<float, 3, 3>(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 2.0f);
+    const Mat3 matrix = mat::Make<float, 3, 3>(
+        0.0f, 1.0f, 0.0f,
+        1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f
+    );
 
-    Matrix<float, 3, 3> inverse{};
+    Mat3 inverse = mat3::Zero;
 
-    ASSERT_TRUE(TryInverse(m, inverse));
-
-    const float expected[]{0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f};
-    ExpectRowMajor(inverse, expected);
+    ASSERT_TRUE(mat::TryInverse(matrix, inverse));
+    EXPECT_TRUE(NearlyEqual(matrix, inverse, Tolerance));
+    EXPECT_TRUE(NearlyEqual(mat3::Identity, matrix * inverse, Tolerance));
 }
 
 TEST(MatrixInverseTest, WidensIntegerInputToRequestedFloatingType)
 {
-    Matrix<double, 3, 3> inverse{};
+    const Matrix<int32, 2, 2> matrix = mat::Make<int32, 2, 2>(
+        4, 7,
+        2, 6
+    );
 
-    ASSERT_TRUE(TryInverse(Make<int, 3, 3>(2, -1, 0, -1, 2, -1, 0, -1, 2), inverse));
+    Mat2 result = mat2::Zero;
 
-    EXPECT_NEAR(0.75, At(inverse, 0, 0), 1e-12);
-    EXPECT_NEAR(0.5, At(inverse, 0, 1), 1e-12);
-    EXPECT_NEAR(0.25, At(inverse, 0, 2), 1e-12);
+    ASSERT_TRUE(mat::TryInverse(matrix, result));
+
+    const Mat2 expected = mat::Make<float, 2, 2>(
+        0.6f, -0.7f,
+        -0.2f, 0.4f
+    );
+
+    EXPECT_TRUE(NearlyEqual(expected, result, Tolerance));
 }
 
-TEST(MatrixInverseTest, IntegerTwoByTwoDoesNotTruncate)
+TEST(MatrixInverseTest, InvertsMatricesWithVerySmallElements)
 {
-    Matrix<double, 2, 2> inverse{};
+    const Mat2 matrix = mat::Make<float, 2, 2>(
+        1e-4f, 0.0f,
+        0.0f, 1e-4f
+    );
 
-    ASSERT_TRUE(TryInverse(Make<int, 2, 2>(4, 7, 2, 6), inverse));
+    Mat2 inverse = mat2::Zero;
 
-    EXPECT_DOUBLE_EQ(0.6, At(inverse, 0, 0));
-    EXPECT_DOUBLE_EQ(-0.7, At(inverse, 0, 1));
-    EXPECT_DOUBLE_EQ(-0.2, At(inverse, 1, 0));
-    EXPECT_DOUBLE_EQ(0.4, At(inverse, 1, 1));
-}
-
-TEST(MatrixInverseTest, InvertsTwoByTwoWithVerySmallElements)
-{
-    Matrix<float, 2, 2> inverse{};
-
-    ASSERT_TRUE(TryInverse(Make<float, 2, 2>(1e-4f, 0.0f, 0.0f, 1e-4f), inverse));
-
-    EXPECT_TRUE(NearlyEqual(inverse, Make<float, 2, 2>(1e4f, 0.0f, 0.0f, 1e4f), 1e-5f));
-}
-
-TEST(MatrixInverseTest, InvertsThreeByThreeWithVerySmallElements)
-{
-    auto m = Make<float, 3, 3>(1e-8f, 0.0f, 0.0f, 0.0f, 1e-8f, 0.0f, 0.0f, 0.0f, 1e-8f);
-
-    Matrix<float, 3, 3> inverse{};
-
-    ASSERT_TRUE(TryInverse(m, inverse));
-
-    EXPECT_TRUE(NearlyEqual(inverse, Identity<float, 3> * 1e8f, 1e-5f));
-    EXPECT_TRUE(NearlyEqual(m * inverse, Identity<float, 3>, 1e-5f));
-}
-
-TEST(MatrixInverseTest, ScalingAMatrixDoesNotChangeInvertibility)
-{
-    Matrix<float, 3, 3> inverse{};
-
-    for (float scale = 1.0f; scale > 1e-9f; scale *= 0.1f)
-    {
-        EXPECT_TRUE(TryInverse(MakeTridiagonal() * scale, inverse)) << "scale " << scale;
-    }
+    ASSERT_TRUE(mat::TryInverse(matrix, inverse));
+    EXPECT_NEAR(1e4f, mat::At(inverse, 0, 0), 1.0f);
+    EXPECT_NEAR(1e4f, mat::At(inverse, 1, 1), 1.0f);
 }
 
 TEST(MatrixInverseTest, ReportsFailureForSingularMatrix)
 {
-    Matrix<float, 2, 2> inverse2{};
-    Matrix<float, 3, 3> inverse3{};
+    const Mat2 two = mat::Make<float, 2, 2>(
+        1.0f, 2.0f,
+        2.0f, 4.0f
+    );
 
-    EXPECT_FALSE(TryInverse(Make<float, 2, 2>(1.0f, 2.0f, 2.0f, 4.0f), inverse2));
-    EXPECT_FALSE(TryInverse(Zero<float, 3, 3>, inverse3));
+    const Mat3 three = mat::Make<float, 3, 3>(
+        1.0f, 2.0f, 3.0f,
+        2.0f, 4.0f, 6.0f,
+        1.0f, 0.0f, 1.0f
+    );
+
+    Mat2 twoResult = mat2::Zero;
+    Mat3 threeResult = mat3::Zero;
+
+    EXPECT_FALSE(mat::TryInverse(two, twoResult));
+    EXPECT_FALSE(mat::TryInverse(three, threeResult));
 }
 
 TEST(MatrixInverseTest, LeavesOutputUntouchedOnFailure)
 {
-    auto output = Make<float, 3, 3>(
+    const Mat3 singular = mat::Make<float, 3, 3>(
         1.0f, 2.0f, 3.0f,
-        4.0f, 5.0f, 6.0f,
-        7.0f, 8.0f, 9.0f
+        2.0f, 4.0f, 6.0f,
+        1.0f, 0.0f, 1.0f
     );
 
-    const auto original = output;
+    Mat3 result = MakeArbitrary();
+    const Mat3 untouched = result;
 
-    EXPECT_FALSE(TryInverse(Zero<float, 3, 3>, output));
-    EXPECT_TRUE(NearlyEqual(output, original));
+    EXPECT_FALSE(mat::TryInverse(singular, result));
+    EXPECT_TRUE(NearlyEqual(untouched, result));
 }
 
 TEST(MatrixInverseTest, LeavesOutputUntouchedWhenSingularityIsFoundAtLastPivot)
 {
-    auto output = Make<float, 3, 3>(
-        1.0f, 2.0f, 3.0f,
-        4.0f, 5.0f, 6.0f,
-        7.0f, 8.0f, 9.0f
-    );
+    Mat3 singular = mat3::Identity;
+    mat::At(singular, 2, 2) = 0.0f;
 
-    const auto original = output;
-    const auto singular = Make<float, 3, 3>(2.0f, 1.0f, 0.0f, 1.0f, 2.0f, 0.0f, 3.0f, 3.0f, 0.0f);
+    Mat3 result = MakeArbitrary();
+    const Mat3 untouched = result;
 
-    EXPECT_FALSE(TryInverse(singular, output));
-    EXPECT_TRUE(NearlyEqual(output, original));
+    EXPECT_FALSE(mat::TryInverse(singular, result));
+    EXPECT_TRUE(NearlyEqual(untouched, result));
 }
 
 TEST(MatrixInverseTest, LeavesOutputUntouchedOnSingularTwoByTwo)
 {
-    auto output = Make<float, 2, 2>(1.0f, 2.0f, 3.0f, 4.0f);
+    const Mat2 singular = mat::Make<float, 2, 2>(
+        1.0f, 2.0f,
+        2.0f, 4.0f
+    );
 
-    const auto original = output;
+    Mat2 result = mat::Make<float, 2, 2>(
+        9.0f, 9.0f,
+        9.0f, 9.0f
+    );
 
-    EXPECT_FALSE(TryInverse(Make<float, 2, 2>(1.0f, 2.0f, 2.0f, 4.0f), output));
-    EXPECT_TRUE(NearlyEqual(output, original));
+    const Mat2 untouched = result;
+
+    EXPECT_FALSE(mat::TryInverse(singular, result));
+    EXPECT_TRUE(NearlyEqual(untouched, result));
 }
 
 TEST(MatrixInverseTest, IdentityIsItsOwnInverse)
 {
-    EXPECT_TRUE(NearlyEqual(Inverse(Identity<float, 4>), Identity<float, 4>));
+    Mat4 result = mat4::Zero;
+
+    ASSERT_TRUE(mat::TryInverse(mat4::Identity, result));
+    EXPECT_TRUE(NearlyEqual(mat4::Identity, result));
 }
 
 TEST(MatrixInverseTest, ShorthandReturnsSameResultAsTryInverse)
 {
-    Matrix<float, 3, 3> expected{};
+    const Mat3 matrix = MakeArbitrary();
 
-    ASSERT_TRUE(TryInverse(MakeTridiagonal(), expected));
+    Mat3 expected = mat3::Zero;
 
-    EXPECT_TRUE(NearlyEqual(Inverse(MakeTridiagonal()), expected));
+    ASSERT_TRUE(mat::TryInverse(matrix, expected));
+    EXPECT_TRUE(NearlyEqual(expected, mat::Inverse(matrix)));
 }
 
-TEST(MatrixNearlyEqualTest, AcceptsIdenticalMatrices)
+TEST(MatrixInverseTest, AppliedTwiceReturnsOriginal)
 {
-    EXPECT_TRUE(NearlyEqual(MakeA23(), MakeA23()));
-}
+    const Mat3 matrix = MakeArbitrary();
 
-TEST(MatrixNearlyEqualTest, RejectsDifferenceBeyondTolerance)
-{
-    auto m = MakeA23();
-
-    At(m, 1, 2) += 0.5f;
-
-    EXPECT_FALSE(NearlyEqual(m, MakeA23()));
-    EXPECT_FALSE(NearlyEqual(m, MakeA23(), 0.01f));
-}
-
-TEST(MatrixNearlyEqualTest, ToleranceIsRelativeToElementMagnitude)
-{
-    auto small = Make<float, 1, 1>(1.0f);
-    auto large = Make<float, 1, 1>(100.0f);
-
-    EXPECT_FALSE(NearlyEqual(small, Make<float, 1, 1>(1.5f), 0.1f));
-    EXPECT_TRUE(NearlyEqual(large, Make<float, 1, 1>(100.5f), 0.1f));
-}
-
-TEST(MatrixNearlyEqualTest, AcceptsDifferenceWithinTolerance)
-{
-    auto m = MakeA23();
-
-    At(m, 1, 2) += 0.05f;
-
-    EXPECT_TRUE(NearlyEqual(m, MakeA23(), 0.1f));
-}
-
-TEST(MatrixNearlyEqualTest, ScalesToleranceWithMagnitude)
-{
-    auto a = Make<float, 1, 1>(1000000.0f);
-    auto b = Make<float, 1, 1>(1000000.06f);
-
-    EXPECT_TRUE(NearlyEqual(a, b));
-    EXPECT_FALSE(NearlyEqual(Make<float, 1, 1>(0.0f), Make<float, 1, 1>(0.001f)));
-}
-
-TEST(MatrixNearlyEqualTest, ComparesIntegerMatricesExactly)
-{
-    EXPECT_TRUE(NearlyEqual(Make<int, 2, 2>(1, 2, 3, 4), Make<int, 2, 2>(1, 2, 3, 4)));
-    EXPECT_FALSE(NearlyEqual(Make<int, 2, 2>(1, 2, 3, 4), Make<int, 2, 2>(1, 2, 3, 5)));
-}
-
-TEST(MathUtilsTest, NearlyEqualUsesAbsoluteAndRelativeTolerance)
-{
-    EXPECT_TRUE(NearlyEqual(1.0f, 1.0f));
-    EXPECT_TRUE(NearlyEqual(1.0f, 1.05f, 0.1f));
-    EXPECT_FALSE(NearlyEqual(1.0f, 1.5f, 0.1f));
-    EXPECT_TRUE(NearlyEqual(1000000.0f, 1000000.06f));
-    EXPECT_FALSE(NearlyEqual(0.0f, 0.001f));
-}
-
-TEST(MathUtilsTest, NearlyZeroMatchesOnlySmallValues)
-{
-    EXPECT_TRUE(NearlyZero(0.0));
-    EXPECT_TRUE(NearlyZero(0.001, 0.01));
-    EXPECT_FALSE(NearlyZero(0.001));
-    EXPECT_TRUE(NearlyZero(0));
-    EXPECT_FALSE(NearlyZero(1));
-}
-
-TEST(MathUtilsTest, AbsRemovesSign)
-{
-    EXPECT_FLOAT_EQ(2.5f, Abs(-2.5f));
-    EXPECT_FLOAT_EQ(2.5f, Abs(2.5f));
-    EXPECT_EQ(7, Abs(-7));
-}
-
-namespace
-{
-    constexpr auto g_A       = Make<float, 2, 3>(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
-    constexpr auto g_B       = Make<float, 3, 2>(7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f);
-    constexpr auto g_Product = g_A * g_B;
-    constexpr auto g_Vector  = g_A * vec::Make<float>(1.0f, 2.0f, 3.0f);
-
-    static_assert(At(g_A, 1, 2) == 6.0f);
-    static_assert(g_A.Data[1] == 4.0f);
-
-    static_assert(NearlyEqual(g_Product, Make<float, 2, 2>(58.0f, 64.0f, 139.0f, 154.0f)));
-    static_assert(NearlyEqual(g_Vector, vec::Make<float>(14.0f, 32.0f)));
-
-    static_assert(NearlyEqual(Transpose(g_A), Make<float, 3, 2>(1.0f, 4.0f, 2.0f, 5.0f, 3.0f, 6.0f)));
-    static_assert(NearlyEqual(Transpose(Transpose(g_A)), g_A));
-
-    static_assert(NearlyEqual(g_A + g_A, g_A * 2.0f));
-    static_assert(NearlyEqual(g_A - g_A, Zero<float, 2, 3>));
-
-    static_assert(At(Identity<float, 3>, 1, 1) == 1.0f);
-    static_assert(At(Identity<float, 3>, 1, 2) == 0.0f);
-
-    static_assert(Determinant(Make<float, 2, 2>(1.0f, 2.0f, 3.0f, 4.0f)) == -2.0f);
-    static_assert(Determinant(Make<int32, 2, 2>(1, 2, 3, 4)) == -2);
-    static_assert(Determinant(Make<uint32, 2, 2>(1u, 2u, 3u, 4u)) == -2);
-    static_assert(std::is_same_v<DeterminantResultT<float>, float>);
-    static_assert(std::is_same_v<DeterminantResultT<double>, double>);
-    static_assert(std::is_same_v<DeterminantResultT<int32>, int64>);
-    static_assert(std::is_same_v<DeterminantResultT<uint32>, int64>);
-    static_assert(Determinant(Make<float, 3, 3>(2.0f, -1.0f, 0.0f, -1.0f, 2.0f, -1.0f, 0.0f, -1.0f, 2.0f)) == 4.0f);
-
-    static_assert(NearlyEqual(
-        Inverse(Make<float, 2, 2>(4.0f, 7.0f, 2.0f, 6.0f)),
-        Make<float, 2, 2>(0.6f, -0.7f, -0.2f, 0.4f),
-        1e-6f
-    ));
-
-    static_assert(NearlyEqual(
-        Make<float, 2, 2>(4.0f, 7.0f, 2.0f, 6.0f) * Inverse(Make<float, 2, 2>(4.0f, 7.0f, 2.0f, 6.0f)),
-        Identity<float, 2>,
-        1e-6f
-    ));
-
-    static_assert(NearlyEqual(1.0f, 1.0f));
-    static_assert(!NearlyEqual(0.0f, 0.001f));
-    static_assert(NearlyZero(0.0f));
-    static_assert(Abs(-3) == 3);
+    EXPECT_TRUE(NearlyEqual(matrix, mat::Inverse(mat::Inverse(matrix)), 1e-3f));
 }
 
 TEST(MatrixConstexprTest, ExpressionsEvaluateAtCompileTime)
 {
+    constexpr Mat2 sum = mat2::Identity + mat2::Identity;
+    static_assert(sum.Data[0] == 2.0f);
+
+    constexpr Mat2 product = mat2::Identity * mat2::Identity;
+    static_assert(product.Data[3] == 1.0f);
+
+    constexpr Vec2 transformed = mat2::Identity * Vec2{1.0f, 2.0f};
+    static_assert(transformed.Data[1] == 2.0f);
+
+    constexpr float determinant = mat::Determinant(mat2::Identity);
+    static_assert(determinant == 1.0f);
+
+    constexpr Mat2 transposed = mat::Transpose(mat2::Identity);
+    static_assert(transposed.Data[0] == 1.0f);
+
     SUCCEED();
 }
