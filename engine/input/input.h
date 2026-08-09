@@ -26,8 +26,8 @@ namespace cw::input
     int GetMouseX();
     int GetMouseY();
     int GetMouseWheel();
-    math::Vec2i GetMousePosition();
-    math::Vec2i GetMouseDelta();
+    Vec2i GetMousePosition();
+    Vec2i GetMouseDelta();
 
     KEY_MOD GetMods();
     bool IsModDown(KEY_MOD mod_flags);

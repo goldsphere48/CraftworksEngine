@@ -198,12 +198,12 @@ namespace cw::input
         return g_InputState.MouseWheel;
     }
 
-    math::Vec2i GetMousePosition()
+    Vec2i GetMousePosition()
     {
         return {g_InputState.MouseX, g_InputState.MouseY};
     }
 
-    math::Vec2i GetMouseDelta()
+    Vec2i GetMouseDelta()
     {
         return {
             g_InputState.MouseX - g_InputState.PrevMouseX,

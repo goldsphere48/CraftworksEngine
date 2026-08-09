@@ -402,3 +402,18 @@ namespace cw::math::vec4
     inline constexpr Vec4 UnitZ = vec::UnitZ<float, 4>;
     inline constexpr Vec4 UnitW = vec::UnitW<float, 4>;
 }
+
+namespace cw
+{
+    using math::Vec2f;
+    using math::Vec3f;
+    using math::Vec4f;
+
+    using math::Vec2i;
+    using math::Vec3i;
+    using math::Vec4i;
+
+    using math::Vec2;
+    using math::Vec3;
+    using math::Vec4;
+}

@@ -314,3 +314,8 @@ namespace cw::math::quat
         );
     }
 }
+
+namespace cw
+{
+    using math::Quaternion;
+}

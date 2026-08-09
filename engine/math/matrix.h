@@ -576,3 +576,10 @@ namespace cw::math::mat4
     inline constexpr Mat4 Identity = mat::Identity<float, 4>;
     inline constexpr Mat4 Zero     = mat::Zero<float, 4, 4>;
 }
+
+namespace cw
+{
+    using math::Mat2;
+    using math::Mat3;
+    using math::Mat4;
+}
