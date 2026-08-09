@@ -1,31 +1,39 @@
 #include "engine.h"
 
-#include "logger/log.h"
+#include "input/input.h"
 #include "filesystem/filesystem.h"
+#include "logger/log.h"
 
 namespace cw::engine
 {
     graphics::Mesh* g_Mesh = nullptr;
-    
+
     static void DestroyEngine(const Engine* engine);
-        
-    static void OnWindowClose(void* userData)
+
+    static void OnPlatformEvent(const platform::Event* event, void* userData)
     {
-        Engine* engine = static_cast<Engine*>(userData);
-        engine->IsRunning = false;
+        Engine* engine    = static_cast<Engine*>(userData);
+
+        if (event->Type == platform::EVENT_WINDOW_CLOSE)
+        {
+            engine->IsRunning = false;
+            return;
+        }
+
+        input::HandleEvent(event);
     }
-    
+
     static Engine* CreateEngine()
     {
         Engine* engine = new Engine();
-        
-        cw::platform::PlatformParams pp;
-        pp.WindowTitle = "CW Engine";
-        pp.WindowWidth = 1024;
-        pp.WindowHeight = 768;
-        pp.WindowCloseCallback = OnWindowClose;
-        pp.WindowCloseCallbackUserData = engine;
-        engine->Platform = cw::platform::Create(&pp);
+
+        platform::PlatformParams pp;
+        pp.WindowTitle           = "CW Engine";
+        pp.WindowWidth           = 1024;
+        pp.WindowHeight          = 768;
+        pp.EventCallback         = OnPlatformEvent;
+        pp.EventCallbackUserData = engine;
+        engine->Platform         = platform::Create(&pp);
 
         if (!engine->Platform)
         {
@@ -33,12 +41,12 @@ namespace cw::engine
             return nullptr;
         }
 
-        cw::fs::Initialize();
-        
-        cw::graphics::GraphicsParams gp;
-        gp.Window = cw::platform::GetNativeWindowHandle(engine->Platform);
-        gp.Backend = cw::graphics::RENDER_BACKEND_OPENGL;
-        engine->Graphics = cw::graphics::Create(&gp);
+        fs::Initialize();
+
+        graphics::GraphicsParams gp;
+        gp.Window        = platform::GetNativeWindowHandle(engine->Platform);
+        gp.Backend       = graphics::RENDER_BACKEND_OPENGL;
+        engine->Graphics = graphics::Create(&gp);
         if (!engine->Graphics)
         {
             DestroyEngine(engine);
@@ -52,31 +60,33 @@ namespace cw::engine
     {
         if (engine->Graphics)
         {
-            cw::graphics::Destroy(engine->Graphics);
+            graphics::Destroy(engine->Graphics);
         }
 
         if (engine->Platform)
         {
-            cw::platform::Destroy(engine->Platform);
+            platform::Destroy(engine->Platform);
         }
 
-        cw::fs::Shutdown();
-        
+        fs::Shutdown();
+
         delete engine;
     }
 
     static void UpdateEngine(const Engine* engine)
     {
-        cw::platform::PollEvents();
+        platform::PollEvents();
 
-        cw::graphics::BeginFrame();
+        graphics::BeginFrame();
         graphics::DrawMesh(engine->Graphics, g_Mesh);
-        cw::graphics::EndFrame();
+        graphics::EndFrame();
+        input::EndFrame();
     }
 
     static int RunLoop(int argc, char** argv)
     {
-        cw::log::Initialize();
+        log::Initialize();
+        input::Initialize();
 
         Engine* engine = CreateEngine();
         if (!engine)
@@ -85,16 +95,14 @@ namespace cw::engine
         }
 
         static const float vertices[] = {
-            -0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  1.0f, 0.0f, 0.0f, 1.0f,  0.0f, 0.0f,
-             0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, 1.0f,  1.0f, 0.0f,
-             0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f, 1.0f, 1.0f,  0.5f, 1.0f,
+            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            0.5f,  -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+            0.0f,  0.5f,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 1.0f,
         };
 
         static const uint32 indices[] = {0, 1, 2};
 
-        g_Mesh = graphics::CreateMesh(
-            vertices, sizeof(vertices), indices, 3
-        );
+        g_Mesh = graphics::CreateMesh(vertices, sizeof(vertices), indices, 3);
 
         while (engine->IsRunning)
         {

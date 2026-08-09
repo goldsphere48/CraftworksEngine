@@ -15,6 +15,7 @@ add_subdirectory(vendor/tomlc17)
 add_library(cw_engine STATIC
   engine/engine/engine.cpp
   engine/platform/platform_windows.cpp
+  engine/input/input.cpp
   engine/logger/log.cpp
   engine/graphics/renderer.cpp
   engine/graphics/opengl/opengl_windows.cpp
