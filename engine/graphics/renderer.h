@@ -1,7 +1,7 @@
 #pragma once
 
-#include "renderer_backend.h"
 #include "core/types.h"
+#include "renderer_backend.h"
 
 namespace cw::graphics
 {
@@ -9,6 +9,7 @@ namespace cw::graphics
     {
         void*               Window;
         RENDER_BACKEND_TYPE Backend;
+        Vec2i               Viewport;
     };
 
     struct GraphicsContext;
@@ -20,6 +21,8 @@ namespace cw::graphics
     void BeginFrame();
 
     void EndFrame();
+
+    void OnResize(GraphicsContext* ctx, int width, int height);
 
     HPipeline CreatePipeline(const char* path);
 

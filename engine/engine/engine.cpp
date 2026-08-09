@@ -20,6 +20,12 @@ namespace cw::engine
             return;
         }
 
+        if (event->Type == platform::EVENT_WINDOW_RESIZE)
+        {
+            graphics::OnResize(engine->Graphics, event->Window.ViewportWidth, event->Window.ViewportHeight);
+            return;
+        }
+
         input::HandleEvent(event);
     }
 
@@ -29,8 +35,6 @@ namespace cw::engine
 
         platform::PlatformParams pp;
         pp.WindowTitle           = "CW Engine";
-        pp.WindowWidth           = 1024;
-        pp.WindowHeight          = 768;
         pp.EventCallback         = OnPlatformEvent;
         pp.EventCallbackUserData = engine;
         engine->Platform         = platform::Create(&pp);
@@ -46,6 +50,7 @@ namespace cw::engine
         graphics::GraphicsParams gp;
         gp.Window        = platform::GetNativeWindowHandle(engine->Platform);
         gp.Backend       = graphics::RENDER_BACKEND_OPENGL;
+        gp.Viewport      = platform::GetViewportSize(engine->Platform);
         engine->Graphics = graphics::Create(&gp);
         if (!engine->Graphics)
         {

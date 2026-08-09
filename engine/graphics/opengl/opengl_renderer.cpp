@@ -79,6 +79,11 @@ namespace cw::graphics
     }
 #endif
 
+    static void UpdateViewport(int width, int height)
+    {
+        glViewport(0, 0, width, height);
+    }
+
     static bool CompileGLSL(const char* source, SHADER_TYPE type, GLuint* shader_out)
     {
         GLenum shaderType = type == SHADER_TYPE_VERTEX ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
@@ -389,5 +394,6 @@ namespace cw::graphics
         backend->CreateBuffer       = CreateBuffer;
         backend->DeleteBuffer       = DeleteBuffer;
         backend->DrawMesh           = DrawMesh;
+        backend->UpdateViewport     = UpdateViewport;
     }
 }

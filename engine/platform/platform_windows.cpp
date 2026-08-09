@@ -10,6 +10,8 @@
 
 namespace cw::platform
 {
+    constexpr usize CW_MAX_MONITORS = 8;
+
     struct PlatformContext
     {
         FEventCallback EventCallback;
@@ -18,7 +20,14 @@ namespace cw::platform
         HINSTANCE      Instance;
         bool           MouseTracked;
         uint8          MouseButtons;
+        MonitorInfo    Monitors[CW_MAX_MONITORS];
+        MonitorInfo    CurrentMonitor;
+        usize          MonitorsCount = 0;
+        int            ViewportWidth;
+        int            ViewportHeight;
     };
+
+    constexpr int CW_MAX_WINDOW_TITLE = 256;
 
     static uint16 g_KeyTable[256];
 
@@ -114,7 +123,7 @@ namespace cw::platform
 
         if (wParam == VK_SHIFT)
         {
-            UINT vk = MapVirtualKey(scancode, MAPVK_VSC_TO_VK_EX);
+            UINT vk = MapVirtualKeyW(scancode, MAPVK_VSC_TO_VK_EX);
             if (vk != 0)
             {
                 wParam = vk;
@@ -178,6 +187,16 @@ namespace cw::platform
         return (input::KEY_MOD)mods;
     }
 
+    static void Dispatch(const PlatformContext* ctx, const Event* event)
+    {
+        if (ctx->EventCallback == nullptr)
+        {
+            return;
+        }
+
+        ctx->EventCallback(event, ctx->EventCallbackUserData);
+    }
+
     static void HandleKeyEvent(
         const PlatformContext* ctx,
         WPARAM wParam,
@@ -200,7 +219,7 @@ namespace cw::platform
             event.Key.IsRepeated = ((lParam >> 30) & 1) > 0;
         }
 
-        ctx->EventCallback(&event, ctx->EventCallbackUserData);
+        Dispatch(ctx, &event);
     }
 
     static void HandleMouseButtonEvent(
@@ -240,7 +259,7 @@ namespace cw::platform
         event.Mouse.Button = button;
         event.Type         = type;
         event.Mouse.Mods   = GetKeyMods();
-        ctx->EventCallback(&event, ctx->EventCallbackUserData);
+        Dispatch(ctx, &event);
     }
 
     static void ReleaseAllMouseButtons(PlatformContext* ctx)
@@ -268,7 +287,7 @@ namespace cw::platform
             event.Mouse.X      = cursor.x;
             event.Mouse.Y      = cursor.y;
 
-            ctx->EventCallback(&event, ctx->EventCallbackUserData);
+            Dispatch(ctx, &event);
         }
 
         ctx->MouseButtons = 0;
@@ -276,28 +295,42 @@ namespace cw::platform
 
     static LRESULT CALLBACK WindowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        LONG_PTR         lpUser = GetWindowLongPtr(window, GWLP_USERDATA);
+        LONG_PTR         lpUser = GetWindowLongPtrW(window, GWLP_USERDATA);
         PlatformContext* ctx    = reinterpret_cast<PlatformContext*>(lpUser);
 
         if (ctx == nullptr && msg != WM_NCCREATE)
         {
-            return DefWindowProc(window, msg, wParam, lParam);
+            return DefWindowProcW(window, msg, wParam, lParam);
         }
 
         switch (msg)
         {
             case WM_NCCREATE:
             {
-                CREATESTRUCT* pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
-                ctx                   = static_cast<PlatformContext*>(pCreate->lpCreateParams);
-                SetWindowLongPtr(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ctx));
-                return DefWindowProc(window, msg, wParam, lParam);
+                CREATESTRUCTW* pCreate = reinterpret_cast<CREATESTRUCTW*>(lParam);
+                ctx                    = static_cast<PlatformContext*>(pCreate->lpCreateParams);
+                SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ctx));
+                return DefWindowProcW(window, msg, wParam, lParam);
             }
             case WM_CLOSE:
             {
                 Event event = {};
                 event.Type  = EVENT_WINDOW_CLOSE;
-                ctx->EventCallback(&event, ctx->EventCallbackUserData);
+                Dispatch(ctx, &event);
+                break;
+            }
+            case WM_SIZE:
+            {
+                if (wParam == SIZE_MINIMIZED)
+                {
+                    break;
+                }
+                
+                Event event = {};
+                event.Type  = EVENT_WINDOW_RESIZE;
+                event.Window.ViewportWidth  = ctx->ViewportWidth  = LOWORD(lParam);
+                event.Window.ViewportHeight = ctx->ViewportHeight = HIWORD(lParam);
+                Dispatch(ctx, &event);
                 break;
             }
             case WM_KEYDOWN:
@@ -306,7 +339,7 @@ namespace cw::platform
                 HandleKeyEvent(ctx, wParam, lParam, EVENT_KEY_DOWN);
                 if (msg == WM_SYSKEYDOWN)
                 {
-                    return DefWindowProc(window, msg, wParam, lParam);
+                    return DefWindowProcW(window, msg, wParam, lParam);
                 }
                 break;
             }
@@ -316,7 +349,7 @@ namespace cw::platform
                 HandleKeyEvent(ctx, wParam, lParam, EVENT_KEY_UP);
                 if (msg == WM_SYSKEYUP)
                 {
-                    return DefWindowProc(window, msg, wParam, lParam);
+                    return DefWindowProcW(window, msg, wParam, lParam);
                 }
                 break;
             }
@@ -423,7 +456,7 @@ namespace cw::platform
                         enter.Mouse.X = xPos;
                         enter.Mouse.Y = yPos;
 
-                        ctx->EventCallback(&enter, ctx->EventCallbackUserData);
+                        Dispatch(ctx, &enter);
                     }
                 }
 
@@ -432,7 +465,7 @@ namespace cw::platform
                 event.Mouse.X = xPos;
                 event.Mouse.Y = yPos;
 
-                ctx->EventCallback(&event, ctx->EventCallbackUserData);
+                Dispatch(ctx, &event);
                 break;
             }
             case WM_MOUSEWHEEL:
@@ -442,7 +475,7 @@ namespace cw::platform
                 event.Type        = EVENT_MOUSE_WHEEL;
                 event.Mouse.Wheel = zDelta > 0 ? 1 : -1;
 
-                ctx->EventCallback(&event, ctx->EventCallbackUserData);
+                Dispatch(ctx, &event);
                 break;
             }
             case WM_KILLFOCUS:
@@ -452,7 +485,7 @@ namespace cw::platform
                 event.Type             = EVENT_WINDOW_FOCUS;
                 event.Window.IsFocused = msg == WM_SETFOCUS;
 
-                ctx->EventCallback(&event, ctx->EventCallbackUserData);
+                Dispatch(ctx, &event);
                 break;
             }
             case WM_ACTIVATE:
@@ -462,7 +495,7 @@ namespace cw::platform
                                                             : EVENT_WINDOW_ACTIVATE;
 
 
-                ctx->EventCallback(&event, ctx->EventCallbackUserData);
+                Dispatch(ctx, &event);
                 break;
             }
             case WM_CAPTURECHANGED:
@@ -477,46 +510,146 @@ namespace cw::platform
                 Event event = {};
                 event.Type  = EVENT_MOUSE_LEAVE;
 
-                ctx->EventCallback(&event, ctx->EventCallbackUserData);
+                Dispatch(ctx, &event);
                 break;
             }
             default:
             {
-                return DefWindowProc(window, msg, wParam, lParam);
+                return DefWindowProcW(window, msg, wParam, lParam);
             }
         }
         return 0;
     }
 
+    static bool QueryMonitorInfo(HMonitor monitor, MONITORINFOEXW* out_info)
+    {
+        out_info->cbSize = sizeof(MONITORINFOEXW);
+
+        return GetMonitorInfoW(static_cast<HMONITOR>(monitor), out_info) != 0;
+    }
+
+    static BOOL CALLBACK MonitorEnumProc(HMONITOR hMon, HDC hdc, LPRECT lprcMonitor, LPARAM pData)
+    {
+        PlatformContext* ctx = reinterpret_cast<PlatformContext*>(pData);
+        if (ctx->MonitorsCount >= CW_MAX_MONITORS)
+        {
+            return true;
+        }
+
+        MONITORINFOEXW mi;
+        if (!QueryMonitorInfo(hMon, &mi))
+        {
+            return true;
+        }
+
+        MonitorInfo& info = ctx->Monitors[ctx->MonitorsCount++];
+
+        info.Monitor       = hMon;
+        info.DisplayWidth  = mi.rcMonitor.right - mi.rcMonitor.left;
+        info.DisplayHeight = mi.rcMonitor.bottom - mi.rcMonitor.top;
+        info.Primary       = mi.dwFlags & MONITORINFOF_PRIMARY;
+        WideCharToMultiByte(CP_UTF8, 0, mi.szDevice, -1, info.DisplayName, CW_MAX_MONITOR_NAME, nullptr, nullptr);
+        
+        return true;
+    }
+
     PlatformContext* Create(const PlatformParams* params)
     {
-        PlatformContext* ctx       = new PlatformContext;
-        ctx->EventCallback         = params->EventCallback;
-        ctx->EventCallbackUserData = params->EventCallbackUserData;
-        ctx->Instance              = GetModuleHandleA(nullptr);
+        PlatformContext* ctx       = new PlatformContext{};
+        ctx->EventCallback         = nullptr;
+        ctx->EventCallbackUserData = nullptr;
+        ctx->Instance              = GetModuleHandleW(nullptr);
         ctx->MouseTracked          = false;
         ctx->MouseButtons          = 0;
+        ctx->MonitorsCount         = 0;
 
         InitializeKeyTable();
 
-        WNDCLASSEXA wc   = {};
-        wc.cbSize        = sizeof(WNDCLASSEXA);
+        if (!EnumDisplayMonitors(nullptr, nullptr, MonitorEnumProc, reinterpret_cast<LPARAM>(ctx)))
+        {
+            Destroy(ctx);
+            return nullptr;
+        }
+
+        if (ctx->MonitorsCount == 0)
+        {
+            Destroy(ctx);
+            return nullptr;            
+        }
+
+        int monitor_index = params->MonitorIndex;
+        if (params->MonitorIndex < 0 || monitor_index >= ctx->MonitorsCount)
+        {
+            for (int i = 0; i < ctx->MonitorsCount; ++i)
+            {
+                if (ctx->Monitors[i].Primary)
+                {
+                    monitor_index = i;
+                    break;
+                }
+            }
+        }
+
+        if (monitor_index < 0)
+        {
+            monitor_index = 0;
+        }
+
+        ctx->CurrentMonitor = ctx->Monitors[monitor_index];
+        
+        if (params->WindowWidth <= 0 || params->WindowHeight <=0)
+        {
+            ctx->ViewportWidth  = ctx->CurrentMonitor.DisplayWidth;
+            ctx->ViewportHeight = ctx->CurrentMonitor.DisplayHeight;
+        }
+        else
+        {
+            ctx->ViewportWidth  = params->WindowWidth;
+            ctx->ViewportHeight = params->WindowHeight;
+        }
+
+        WNDCLASSEXW wc   = {};
+        wc.cbSize        = sizeof(WNDCLASSEXW);
         wc.style         = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
         wc.lpfnWndProc   = WindowProc;
         wc.hInstance     = ctx->Instance;
-        wc.lpszClassName = "CW_WINDOW_CLASS";
+        wc.lpszClassName = L"CW_WINDOW_CLASS";
 
-        RegisterClassEx(&wc);
+        RegisterClassExW(&wc);
 
-        ctx->Window = CreateWindowEx(
-            0,
+        wchar_t title[CW_MAX_WINDOW_TITLE];
+        if (MultiByteToWideChar(CP_UTF8, 0, params->WindowTitle, -1, title, CW_MAX_WINDOW_TITLE) == 0)
+        {
+            title[0] = 0;
+        }
+
+        DWORD dwStyle = WS_OVERLAPPEDWINDOW;
+        DWORD dwExStyle = WS_EX_APPWINDOW;
+
+        RECT clientRect = { 0, 0, ctx->ViewportWidth, ctx->ViewportHeight };
+        AdjustWindowRectEx(&clientRect, dwStyle, FALSE, dwExStyle);
+
+        int windowWidth = clientRect.right  - clientRect.left;
+        int windowHeight = clientRect.bottom - clientRect.top;
+
+        MONITORINFOEXW monitor_info;
+        if (!QueryMonitorInfo(ctx->CurrentMonitor.Monitor, &monitor_info))
+        {
+            Destroy(ctx);
+            return nullptr;
+        }
+
+        CW_INFO("%d %d %d %d", monitor_info.rcMonitor.left, monitor_info.rcMonitor.top, windowWidth, windowHeight);
+
+        ctx->Window = CreateWindowExW(
+            dwExStyle,
             wc.lpszClassName,
-            params->WindowTitle,
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            params->WindowWidth,
-            params->WindowHeight,
+            title,
+            dwStyle,
+            monitor_info.rcWork.left,
+            monitor_info.rcWork.top,
+            windowWidth,
+            windowHeight,
             nullptr,
             nullptr,
             wc.hInstance,
@@ -531,6 +664,9 @@ namespace cw::platform
 
         ShowWindow(ctx->Window, SW_SHOW);
 
+        ctx->EventCallback         = params->EventCallback;
+        ctx->EventCallbackUserData = params->EventCallbackUserData;
+
         return ctx;
     }
 
@@ -538,7 +674,7 @@ namespace cw::platform
     {
         if (ctx->Window != nullptr)
         {
-            SetWindowLongPtr(ctx->Window, GWLP_USERDATA, 0);
+            SetWindowLongPtrW(ctx->Window, GWLP_USERDATA, 0);
             DestroyWindow(ctx->Window);
             ctx->Window = nullptr;
         }
@@ -554,10 +690,10 @@ namespace cw::platform
     void PollEvents()
     {
         MSG msg;
-        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) > 0)
+        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE) > 0)
         {
             TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            DispatchMessageW(&msg);
         }
     }
 
@@ -631,6 +767,27 @@ namespace cw::platform
         *out_size           = (usize)size.QuadPart;
 
         return true;
+    }
+
+    Vec2i GetViewportSize(const PlatformContext* ctx)
+    {
+        return { ctx->ViewportWidth, ctx->ViewportHeight };
+    }
+
+    MonitorInfo GetCurrentMonitorInfo(const PlatformContext* ctx)
+    {
+        return ctx->CurrentMonitor;
+    }
+
+    const MonitorInfo* GetMonitors(const PlatformContext* ctx, usize* count)
+    {
+        if (count != nullptr)
+        {
+            *count = ctx->MonitorsCount;
+            return nullptr;
+        }
+
+        return &ctx->Monitors[0];
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "input/keycodes.h"
+#include "math/vector.h"
 
 constexpr unsigned int CW_MAX_PATH = 1024;
 
@@ -16,6 +17,7 @@ namespace cw::platform
         EVENT_WINDOW_FOCUS,
         EVENT_WINDOW_ACTIVATE,
         EVENT_WINDOW_DEACTIVATE,
+        EVENT_WINDOW_RESIZE,
         EVENT_KEY_DOWN,
         EVENT_KEY_UP,
         EVENT_MOUSE_BUTTON_DOWN,
@@ -24,6 +26,13 @@ namespace cw::platform
         EVENT_MOUSE_WHEEL,
         EVENT_MOUSE_ENTER,
         EVENT_MOUSE_LEAVE,
+    };
+
+    enum WINDOW_STYLE
+    {
+        WINDOW_STYLE_WINDOWED,
+        WINDOW_STYLE_FULLSCREEN,
+        WINDOW_STYLE_BORDERLESS,
     };
 
     struct Event
@@ -51,8 +60,24 @@ namespace cw::platform
             struct
             {
                 bool IsFocused;
+                int  ViewportWidth;
+                int  ViewportHeight;
             } Window;
         };
+    };
+
+
+    typedef void* HMonitor;
+
+    constexpr usize CW_MAX_MONITOR_NAME = 256;
+
+    struct MonitorInfo
+    {
+        HMonitor Monitor;
+        uint32   DisplayWidth;
+        uint32   DisplayHeight;
+        char     DisplayName[CW_MAX_MONITOR_NAME];
+        bool     Primary;
     };
 
     typedef void (*FEventCallback)(const Event* event, void* userData);
@@ -61,8 +86,9 @@ namespace cw::platform
     {
         FEventCallback EventCallback;
         void*          EventCallbackUserData;
-        int            WindowWidth;
-        int            WindowHeight;
+        int            WindowWidth = 0;
+        int            WindowHeight = 0;
+        int            MonitorIndex = -1;
         const char*    WindowTitle;
     };
 
@@ -77,4 +103,10 @@ namespace cw::platform
     bool GetExeDir(char* out_utf8, usize size);
 
     bool ReadFileToBuffer(const char* utf8_path, void** out_data, usize* out_size);
+
+    Vec2i GetViewportSize(const PlatformContext* ctx);
+
+    MonitorInfo GetCurrentMonitorInfo(const PlatformContext* ctx);
+
+    const MonitorInfo* GetMonitors(const PlatformContext* ctx, usize* count);
 }

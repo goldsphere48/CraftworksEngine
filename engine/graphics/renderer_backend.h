@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "math/vector.h"
 
 namespace cw::graphics
 {
@@ -23,6 +24,11 @@ namespace cw::graphics
         VERTEX_FORMAT_FLOAT3,
         VERTEX_FORMAT_FLOAT4,
         VERTEX_FORMAT_UBYTE4,
+    };
+
+    struct Viewport
+    {
+        Vec2i Size;
     };
 
     struct VertexAttribute
@@ -77,6 +83,8 @@ namespace cw::graphics
 
     typedef void (*FEndFrame)();
 
+    typedef void (*FUpdateViewport)(int width, int height);
+
     typedef HPipeline (*FCreatePipeline)(const PipelineDesc* desc);
 
     typedef void (*FDestroyPipeline)(const HPipeline pipeline);
@@ -99,6 +107,7 @@ namespace cw::graphics
         FDestroy            Destroy;
         FBeginFrame         BeginFrame;
         FEndFrame           EndFrame;
+        FUpdateViewport     UpdateViewport;
         FCreatePipeline     CreatePipeline;
         FDestroyPipeline    DestroyPipeline;
         FBindPipeline       BindPipeline;

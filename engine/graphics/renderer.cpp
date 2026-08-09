@@ -11,6 +11,7 @@ namespace cw::graphics
     struct GraphicsContext
     {
         HPipeline Pipeline = nullptr;
+        Viewport Viewport;
     };
 
     GraphicsContext* Create(const GraphicsParams* params)
@@ -34,9 +35,19 @@ namespace cw::graphics
 
         GraphicsContext* ctx = new GraphicsContext;
 
+        OnResize(ctx, params->Viewport.X, params->Viewport.Y);
+
         ctx->Pipeline = CreatePipeline("shaders/solid_color.ppl");
 
         return ctx;
+    }
+
+    void OnResize(GraphicsContext* ctx, int width, int height)
+    {
+        ctx->Viewport.Size.X = width;
+        ctx->Viewport.Size.Y = height;
+
+        g_Backend.UpdateViewport(width, height);
     }
 
     HPipeline CreatePipeline(const char* path)

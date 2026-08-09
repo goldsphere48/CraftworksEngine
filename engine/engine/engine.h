@@ -10,5 +10,5 @@ namespace cw::engine
         cw::platform::PlatformContext* Platform = nullptr;
         cw::graphics::GraphicsContext* Graphics = nullptr;
         bool IsRunning = true;
-    };
+    };     
 }
