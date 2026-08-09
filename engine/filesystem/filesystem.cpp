@@ -21,33 +21,40 @@ namespace cw::fs
 
     FileSystem g_fs;
 
-    static const void ResolveAssetsRoot(char* out, usize size)
+    static bool ResolveAssetsRoot(char* out, usize size)
     {
 #ifdef CW_ASSETS_DIR
         snprintf(out, size, "%s", CW_ASSETS_DIR);
+        return true;
 #else
         char exeDir[CW_MAX_PATH];
         if (!platform::GetExeDir(exeDir, sizeof(exeDir)))
         {
             CW_ERROR("Failed to resolve assets root");
-            return;
+            return false;
         }
         snprintf(out, size, "%s", exeDir);
+        return true;
 #endif
     }
 
-    void Initialize()
+    bool Initialize()
     {
         CW_ASSERT(!g_fs.IsInitialized);
 
-        g_fs.IsInitialized = true;
+        if (!ResolveAssetsRoot(g_fs.AssetsRoot, sizeof(g_fs.AssetsRoot)))
+        {
+            return false;
+        }
+
+        g_fs.IsInitialized  = true;
         g_fs.ProvidersCount = 0;
-        
-        ResolveAssetsRoot(g_fs.AssetsRoot, sizeof(g_fs.AssetsRoot));
 
         CW_INFO("Assets root: %s", g_fs.AssetsRoot);
 
         Mount(CreateFileProvider(g_fs.AssetsRoot));
+
+        return true;
     }
 
     void Shutdown()
@@ -56,7 +63,7 @@ namespace cw::fs
         
         g_fs.IsInitialized = false;
 
-        for (int i = 0; i < g_fs.ProvidersCount; ++i)
+        for (usize i = 0; i < g_fs.ProvidersCount; ++i)
         {
             g_fs.Providers[i]->Destroy(g_fs.Providers[i]);
         }
@@ -74,7 +81,8 @@ namespace cw::fs
     void Mount(Provider* provider)
     {
         CW_ASSERT(g_fs.IsInitialized);
-        
+        CW_ASSERT(provider != nullptr);
+
         if (g_fs.ProvidersCount >= MAX_PROVIDERS)
         {
             return;
@@ -87,7 +95,7 @@ namespace cw::fs
     {
         CW_ASSERT(g_fs.IsInitialized);
         
-        for (int i = 0; i < g_fs.ProvidersCount; ++i)
+        for (usize i = 0; i < g_fs.ProvidersCount; ++i)
         {
             Provider* p = g_fs.Providers[i];
             if (p->Exists(p->Self, virtual_path))

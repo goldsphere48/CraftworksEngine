@@ -12,7 +12,7 @@ namespace cw::fs
         usize Size;
     };
     
-    void Initialize();
+    bool Initialize();
 
     void Shutdown();
 

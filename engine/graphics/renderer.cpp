@@ -29,7 +29,6 @@ namespace cw::graphics
 
         if (!g_Backend.Initialize(params->Window))
         {
-            g_Backend.Destroy();
             return nullptr;
         }
 
@@ -38,6 +37,14 @@ namespace cw::graphics
         OnResize(ctx, params->Viewport.X, params->Viewport.Y);
 
         ctx->Pipeline = CreatePipeline("shaders/solid_color.ppl");
+
+        if (!ctx->Pipeline)
+        {
+            CW_ERROR("Failed to create pipeline");
+            delete ctx;
+            g_Backend.Destroy();
+            return nullptr;
+        }
 
         return ctx;
     }

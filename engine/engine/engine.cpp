@@ -8,8 +8,6 @@ namespace cw::engine
 {
     graphics::Mesh* g_Mesh = nullptr;
 
-    static void DestroyEngine(const Engine* engine);
-
     static void OnPlatformEvent(const platform::Event* event, void* userData)
     {
         Engine* engine    = static_cast<Engine*>(userData);
@@ -41,20 +39,31 @@ namespace cw::engine
 
         if (!engine->Platform)
         {
-            DestroyEngine(engine);
+            CW_ERROR("Failed to create platform");
+            delete engine;
             return nullptr;
         }
 
-        fs::Initialize();
+        if (!fs::Initialize())
+        {
+            CW_ERROR("Failed to initialize filesystem");
+            platform::Destroy(engine->Platform);
+            delete engine;
+            return nullptr;
+        }
 
         graphics::GraphicsParams gp;
         gp.Window        = platform::GetNativeWindowHandle(engine->Platform);
         gp.Backend       = graphics::RENDER_BACKEND_OPENGL;
         gp.Viewport      = platform::GetViewportSize(engine->Platform);
         engine->Graphics = graphics::Create(&gp);
+
         if (!engine->Graphics)
         {
-            DestroyEngine(engine);
+            CW_ERROR("Failed to create graphics");
+            fs::Shutdown();
+            platform::Destroy(engine->Platform);
+            delete engine;
             return nullptr;
         }
 
@@ -63,17 +72,11 @@ namespace cw::engine
 
     static void DestroyEngine(const Engine* engine)
     {
-        if (engine->Graphics)
-        {
-            graphics::Destroy(engine->Graphics);
-        }
-
-        if (engine->Platform)
-        {
-            platform::Destroy(engine->Platform);
-        }
+        graphics::Destroy(engine->Graphics);
 
         fs::Shutdown();
+
+        platform::Destroy(engine->Platform);
 
         delete engine;
     }
@@ -96,7 +99,7 @@ namespace cw::engine
         Engine* engine = CreateEngine();
         if (!engine)
         {
-            return 0;
+            return 1;
         }
 
         static const float vertices[] = {
