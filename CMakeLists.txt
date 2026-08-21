@@ -49,11 +49,12 @@ if (MSVC)
   target_compile_options(cw_engine PUBLIC /Zc:preprocessor)
 endif()
 
-add_executable(cw
+add_executable(game
   engine/engine/main.cpp
+  game/game.cpp
 )
 
-target_link_libraries(cw PRIVATE cw_engine)
+target_link_libraries(game PRIVATE cw_engine)
 
 execute_process(
   COMMAND ${CMAKE_COMMAND} -E create_symlink

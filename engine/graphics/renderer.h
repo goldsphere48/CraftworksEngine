@@ -28,7 +28,7 @@ namespace cw::graphics
 
     void DestroyPipeline(HPipeline pipeline);
 
-    void DrawMesh(const GraphicsContext* ctx, const Mesh* mesh);
+    void DrawMesh(HPipeline pipeline, const Mesh* mesh);
 
     Mesh* CreateMesh(
         const void*   vertices,

@@ -6,8 +6,6 @@
 
 namespace cw::engine
 {
-    graphics::Mesh* g_Mesh = nullptr;
-
     static void OnPlatformEvent(const platform::Event* event, void* userData)
     {
         Engine* engine    = static_cast<Engine*>(userData);
@@ -84,9 +82,8 @@ namespace cw::engine
     static void UpdateEngine(const Engine* engine)
     {
         platform::PollEvents();
-
         graphics::BeginFrame();
-        graphics::DrawMesh(engine->Graphics, g_Mesh);
+        CW_AppUpdate(engine);
         graphics::EndFrame();
         input::EndFrame();
     }
@@ -102,23 +99,15 @@ namespace cw::engine
             return 1;
         }
 
-        static const float vertices[] = {
-            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-            0.5f,  -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-            0.0f,  0.5f,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 1.0f,
-        };
-
-        static const uint32 indices[] = {0, 1, 2};
-
-        g_Mesh = graphics::CreateMesh(vertices, sizeof(vertices), indices, 3);
+        CW_AppInitialize(engine);
 
         while (engine->IsRunning)
         {
             UpdateEngine(engine);
         }
 
-        graphics::DestroyMesh(g_Mesh);
-
+        CW_AppDestroy(engine);
+        
         DestroyEngine(engine);
 
         return 0;

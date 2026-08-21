@@ -10,7 +10,6 @@ namespace cw::graphics
 
     struct GraphicsContext
     {
-        HPipeline Pipeline = nullptr;
         Viewport Viewport;
     };
 
@@ -35,16 +34,6 @@ namespace cw::graphics
         GraphicsContext* ctx = new GraphicsContext;
 
         OnResize(ctx, params->Viewport.X, params->Viewport.Y);
-
-        ctx->Pipeline = CreatePipeline("shaders/solid_color.ppl");
-
-        if (!ctx->Pipeline)
-        {
-            CW_ERROR("Failed to create pipeline");
-            delete ctx;
-            g_Backend.Destroy();
-            return nullptr;
-        }
 
         return ctx;
     }
@@ -107,10 +96,10 @@ namespace cw::graphics
         g_Backend.EndFrame();
     }
 
-    void DrawMesh(const GraphicsContext* ctx, const Mesh* mesh)
+    void DrawMesh(HPipeline pipeline, const Mesh* mesh)
     {
-        g_Backend.BindPipeline(ctx->Pipeline);
-        g_Backend.DrawMesh(mesh, ctx->Pipeline);
+        g_Backend.BindPipeline(pipeline);
+        g_Backend.DrawMesh(mesh, pipeline);
     }
 
     Mesh* CreateMesh(const void* vertices, usize vertices_size, const uint32* indices, usize index_count)
@@ -142,11 +131,6 @@ namespace cw::graphics
 
     void Destroy(GraphicsContext* ctx)
     {
-        if (ctx->Pipeline)
-        {
-            DestroyPipeline(ctx->Pipeline);
-        }
-        
         g_Backend.Destroy();
 
         delete ctx;

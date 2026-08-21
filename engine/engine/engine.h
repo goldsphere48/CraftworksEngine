@@ -10,5 +10,9 @@ namespace cw::engine
         cw::platform::PlatformContext* Platform = nullptr;
         cw::graphics::GraphicsContext* Graphics = nullptr;
         bool IsRunning = true;
-    };     
+    };
 }
+
+void CW_AppInitialize(const cw::engine::Engine* engine);
+void CW_AppUpdate(const cw::engine::Engine* engine);
+void CW_AppDestroy(const cw::engine::Engine* engine);

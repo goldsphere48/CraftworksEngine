@@ -75,6 +75,21 @@ namespace cw::graphics
         void*  Data;
     };
 
+    enum UNIFORM_TYPE
+    {
+        UNIFORM_TYPE_FLOAT,
+        UNIFORM_TYPE_FLOAT2,
+        UNIFORM_TYPE_FLOAT3,
+        UNIFORM_TYPE_MAT4,
+    };
+
+    struct Uniform
+    {
+        UNIFORM_TYPE Type;
+        void* Buffer;
+    };
+
+
     typedef bool (*FInitialize)(void* window);
 
     typedef void (*FDestroy)();
