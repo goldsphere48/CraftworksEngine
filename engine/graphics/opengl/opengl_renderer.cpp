@@ -2,6 +2,7 @@
 
 #include "gl_functions.h"
 #include "graphics/renderer_backend.h"
+#include "utils/hash.h"
 #include "utils/macros.h"
 
 #include <stdio.h>
@@ -9,11 +10,19 @@
 
 namespace cw::graphics
 {
+    struct GLUniform
+    {
+        uint64 Hash;
+        int    Location;
+    };
+    
     struct GLPipeline
     {
-        GLuint Program;
-        GLuint VAO;
-        GLuint Stride;
+        GLuint     Program;
+        GLuint     VAO;
+        GLuint     Stride;
+        GLUniform* Uniforms;
+        usize      UniformsCount;
     };
 
     struct GLVertexAttrib
@@ -148,13 +157,14 @@ namespace cw::graphics
         GLSwapBuffers();
     }
 
-    static GLuint CreateProgramFromSource(const ShaderDesc* desc)
+    static GLuint CreateProgramFromSource(const char* vertex_source, const char* fragment_source)
     {
         GLuint vertex   = 0;
         GLuint fragment = 0;
 
-        bool success = CompileGLSL(desc->VertexSource, SHADER_TYPE_VERTEX, &vertex)
-                       && CompileGLSL(desc->FragmentSource, SHADER_TYPE_FRAGMENT, &fragment);
+        bool success =
+            CompileGLSL(vertex_source, SHADER_TYPE_VERTEX, &vertex) &&
+            CompileGLSL(fragment_source, SHADER_TYPE_FRAGMENT, &fragment);
 
         if (!success)
         {
@@ -193,31 +203,6 @@ namespace cw::graphics
         return program;
     }
 
-    static GLuint CreateProgramFromBinary(const void* data, usize size)
-    {
-        if (data == nullptr || size < sizeof(GLenum))
-        {
-            return 0;
-        }
-
-        GLenum      format     = *(const GLenum*)data;
-        const void* binary     = (const char*)data + sizeof(GLenum);
-        GLsizei     binarySize = (GLsizei)(size - sizeof(GLenum));
-
-        GLuint program = glCreateProgram();
-        glProgramBinary(program, format, binary, binarySize);
-
-        GLint linked = GL_FALSE;
-        glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (linked == GL_FALSE)
-        {
-            glDeleteProgram(program);
-            return 0;
-        }
-
-        return program;
-    }
-
     static GLVertexAttrib ConvertToGLVertexAttribute(VERTEX_FORMAT format)
     {
         switch (format)
@@ -239,10 +224,7 @@ namespace cw::graphics
 
     static HPipeline CreatePipeline(const PipelineDesc* desc)
     {
-        GLuint program = desc->Binary != nullptr
-                             ? CreateProgramFromBinary(desc->Binary, desc->BinarySize)
-                             : CreateProgramFromSource(&desc->Source);
-
+        GLuint program = CreateProgramFromSource(desc->VertexSource, desc->FragmentSource);
         if (program == 0)
         {
             return nullptr;
@@ -252,82 +234,96 @@ namespace cw::graphics
         glCreateVertexArrays(1, &vao);
 
         int offset = 0;
-        for (int i = 0; i < desc->Layout.AttributeCount; i++)
+        for (int i = 0; i < desc->AttributeCount; i++)
         {
-            const VertexAttribute* attrib   = &desc->Layout.Attributes[i];
-            const GLVertexAttrib   glAttrib = ConvertToGLVertexAttribute(attrib->Format);
+            const VertexAttribute* attrib = &desc->Attributes[i];
+            const GLint           location = glGetAttribLocation(program, attrib->Name);
+            const GLVertexAttrib  glAttrib = ConvertToGLVertexAttribute(attrib->Format);
 
-            glVertexArrayAttribFormat(
-                vao,
-                attrib->Location,
-                glAttrib.Components,
-                glAttrib.Type,
-                glAttrib.Normalized,
-                offset
-            );
+            if (location >= 0)
+            {
+                glVertexArrayAttribFormat(
+                    vao,
+                    location,
+                    glAttrib.Components,
+                    glAttrib.Type,
+                    glAttrib.Normalized,
+                    offset
+                );
 
-            glVertexArrayAttribBinding(vao, attrib->Location, 0);
-            glEnableVertexArrayAttrib(vao, attrib->Location);
+                glVertexArrayAttribBinding(vao, location, 0);
+                glEnableVertexArrayAttrib(vao, location);
+            }
 
             offset += glAttrib.Size;
         }
 
         GLPipeline* glPipeline = new GLPipeline;
-        glPipeline->Program    = program;
-        glPipeline->Stride     = offset;
-        glPipeline->VAO        = vao;
+        glPipeline->Uniforms = new GLUniform[desc->UniformsCount];
+        glPipeline->UniformsCount = desc->UniformsCount;
+        
+        for (int i = 0; i < desc->UniformsCount; ++i)
+        {
+            UniformDesc* u_desc = &desc->Uniforms[i];
+            GLUniform* u = &glPipeline->Uniforms[i];
+            GLint location = glGetUniformLocation(program, u_desc->Name);
+            u->Location = location;
+            u->Hash = utils::HashString(u_desc->Name);
+        }
+
+        glPipeline->Program = program;
+        glPipeline->Stride  = offset;
+        glPipeline->VAO     = vao;
 
         return glPipeline;
     }
 
-    static void GetPipelineBinary(HPipeline pipeline, void** out_binary, usize* out_size)
+    static void GetUniform(const HPipeline pipeline, uint64 nameHash, HUniform* outUniform)
     {
-        GLPipeline* glPipeline = (GLPipeline*)pipeline;
-
-        GLint length = 0;
-        glGetProgramiv(glPipeline->Program, GL_PROGRAM_BINARY_LENGTH, &length);
-        if (length == 0)
+        GLPipeline* glPipeline = static_cast<GLPipeline*>(pipeline);
+        for (int i = 0; i < glPipeline->UniformsCount; ++i)
         {
-            *out_binary = nullptr;
-            *out_size   = 0;
-            return;
+            if (glPipeline->Uniforms[i].Hash == nameHash)
+            {
+                *outUniform = static_cast<HUniform>(&glPipeline->Uniforms[i]);
+                return;
+            }
         }
 
-        usize total  = sizeof(GLenum) + length;
-        char*  buffer = (char*)(malloc(total));
-
-        GLenum  format  = 0;
-        GLsizei written = 0;
-
-        glGetProgramBinary(
-            glPipeline->Program,
-            length,
-            &written,
-            &format,
-            buffer + sizeof(GLenum)
-        );
-
-        *reinterpret_cast<GLenum*>(buffer) = format;
-
-        *out_binary = buffer;
-        *out_size   = total;
+        *outUniform = nullptr;
     }
 
-    static const char* GetPipelineCacheId()
+    static void SetFloat(HUniform uniform, float value)
     {
-        static char id[512];
-        if (id[0] != 0)
-        {
-            return id;
-        }
+        GLUniform* u = static_cast<GLUniform*>(uniform);
+        glUniform1fv(u->Location, 1, &value);
+    }
 
-        const char* vendor   = (const char*)glGetString(GL_VENDOR);
-        const char* renderer = (const char*)glGetString(GL_RENDERER);
-        const char* version  = (const char*)glGetString(GL_VERSION);
+    static void SetVec2(HUniform uniform, Vec2 value)
+    {
+        GLUniform* u = static_cast<GLUniform*>(uniform);
+        glUniform2fv(u->Location, 1, value.Data);
+    }
 
-        snprintf(id, sizeof(id), "PIPELINE|%s|%s|%s", vendor, renderer, version);
 
-        return id;
+    static void SetVec3(HUniform uniform, Vec3 value)
+    {
+        GLUniform* u = static_cast<GLUniform*>(uniform);
+        glUniform3fv(u->Location, 1, value.Data);
+    }
+
+
+    static void SetVec4(HUniform uniform, Vec4 value)
+    {
+        GLUniform* u = static_cast<GLUniform*>(uniform);
+        glUniform4fv(u->Location, 1, value.Data);
+    }
+
+
+    static void SetMat4(HUniform uniform, const float* value)
+    {
+        GLUniform* u = static_cast<GLUniform*>(uniform);
+        glUniformMatrix4fv(u->Location, 1, false, value);
     }
 
     static void DestroyPipeline(const HPipeline pipeline)
@@ -335,6 +331,7 @@ namespace cw::graphics
         GLPipeline* glPipeline = (GLPipeline*)pipeline;
         glDeleteProgram(glPipeline->Program);
         glDeleteVertexArrays(1, &glPipeline->VAO);
+        delete[] glPipeline->Uniforms;
         delete glPipeline;
     }
 
@@ -374,6 +371,7 @@ namespace cw::graphics
         GLBuffer* indicies = (GLBuffer*)mesh->Indicies;
         GLuint    vbo      = ((GLBuffer*)mesh->Vertices)->Id;
         GLuint    ibo      = indicies->Id;
+        GLuint    program  = glPipeline->Program;
 
         glVertexArrayVertexBuffer(vao, 0, vbo, 0, stride);
         glVertexArrayElementBuffer(vao, ibo);
@@ -389,9 +387,13 @@ namespace cw::graphics
         backend->CreatePipeline     = CreatePipeline;
         backend->DestroyPipeline    = DestroyPipeline;
         backend->BindPipeline       = BindPipeline;
-        backend->GetPipelineBinary  = GetPipelineBinary;
-        backend->GetPipelineCacheId = GetPipelineCacheId;
         backend->CreateBuffer       = CreateBuffer;
+        backend->GetUniform         = GetUniform;
+        backend->SetFloat           = SetFloat;
+        backend->SetVec2            = SetVec2;
+        backend->SetVec3            = SetVec3;
+        backend->SetVec4            = SetVec4;
+        backend->SetMat4            = SetMat4;
         backend->DeleteBuffer       = DeleteBuffer;
         backend->DrawMesh           = DrawMesh;
         backend->UpdateViewport     = UpdateViewport;

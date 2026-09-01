@@ -1,0 +1,14 @@
+vertex = "shaders/solid_color.vs"
+fragment = "shaders/solid_color.fs"
+
+[[vertexattribute]]
+name = "a_Position"
+format = "vec3"
+
+[[vertexattribute]]
+name = "a_Color"
+format = "vec4"
+
+[[uniform]]
+name = "u_Color"
+format = "vec4"

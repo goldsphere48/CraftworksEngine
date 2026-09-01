@@ -1,0 +1,5 @@
+pipeline = "shaders/solid_color.pso"
+
+[[parameter]]
+name = "u_Color"
+value = [0, 0, 255, 255]

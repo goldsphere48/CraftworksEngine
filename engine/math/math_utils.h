@@ -7,6 +7,18 @@
 
 namespace cw::math
 {
+    template<CScalar T>
+    T Max(T a, T b)
+    {
+        return a >= b ? a : b;
+    }
+
+    template<CScalar T>
+    T Min(T a, T b)
+    {
+        return a <= b ? a : b;
+    }
+    
     template<CFloating T>
     inline constexpr T Epsilon = std::numeric_limits<T>::epsilon();
 

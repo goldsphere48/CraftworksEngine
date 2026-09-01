@@ -18,6 +18,8 @@ add_library(cw_engine STATIC
   engine/input/input.cpp
   engine/logger/log.cpp
   engine/graphics/renderer.cpp
+  engine/graphics/pipeline_manager.cpp
+  engine/graphics/material.cpp
   engine/graphics/opengl/opengl_windows.cpp
   engine/graphics/opengl/opengl_renderer.cpp
   engine/graphics/opengl/gl_functions.cpp

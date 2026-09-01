@@ -2,9 +2,12 @@
 
 #include "core/types.h"
 #include "renderer_backend.h"
+#include "material.h"
 
 namespace cw::graphics
 {
+    struct PipelineManager;
+    
     struct GraphicsParams
     {
         void*               Window;
@@ -12,7 +15,12 @@ namespace cw::graphics
         Vec2i               Viewport;
     };
 
-    struct GraphicsContext;
+    struct GraphicsContext
+    {
+        Viewport         Viewport;
+        PipelineManager* PipelineManager;
+        material::MaterialContext* MaterialContext;
+    };
 
     GraphicsContext* Create(const GraphicsParams* params);
 
@@ -24,11 +32,23 @@ namespace cw::graphics
 
     void OnResize(GraphicsContext* ctx, int width, int height);
 
-    HPipeline CreatePipeline(const char* path);
+    HPipeline CreatePipeline(const PipelineDesc* desc);
 
     void DestroyPipeline(HPipeline pipeline);
 
-    void DrawMesh(HPipeline pipeline, const Mesh* mesh);
+    void GetUniform(const HPipeline pipeline, uint64 name_hash, HUniform* out_uniform);
+
+    void SetFloat(const HUniform uniform, float value);
+
+    void SetVec2(const HUniform uniform, Vec2 value);
+
+    void SetVec3(const HUniform uniform, Vec3 value);
+
+    void SetVec4(const HUniform uniform, Vec4 value);
+
+    void SetMat4(const HUniform uniform, const float* value);
+
+    void DrawMesh(const material::Material* material, const Mesh* mesh);
 
     Mesh* CreateMesh(
         const void*   vertices,

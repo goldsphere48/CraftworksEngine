@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "math/vector.h"
+#include "math/matrix.h"
 
 namespace cw::graphics
 {
@@ -33,20 +34,15 @@ namespace cw::graphics
 
     struct VertexAttribute
     {
-        int           Location;
+        const char*   Name;
         VERTEX_FORMAT Format;
-    };
-
-    struct VertexLayout
-    {
-        const VertexAttribute* Attributes;
-        int                    AttributeCount;
-        int                    Stride;
     };
 
     typedef void* HPipeline;
 
     typedef void* HBuffer;
+
+    typedef void* HUniform;
 
     struct Mesh
     {
@@ -54,18 +50,29 @@ namespace cw::graphics
         HBuffer Indicies;
     };
 
-    struct ShaderDesc
+    enum UNIFORM_TYPE
     {
-        const char* VertexSource;
-        const char* FragmentSource;
+        UNIFORM_TYPE_FLOAT,
+        UNIFORM_TYPE_VEC2,
+        UNIFORM_TYPE_VEC3,
+        UNIFORM_TYPE_VEC4,
+        UNIFORM_TYPE_MAT4,
+    };
+
+    struct UniformDesc
+    {
+        UNIFORM_TYPE Type;
+        const char*  Name;
     };
 
     struct PipelineDesc
     {
-        const ShaderDesc Source;
-        const void*      Binary;
-        usize            BinarySize;
-        VertexLayout     Layout;
+        const char*            VertexSource;
+        const char*            FragmentSource;
+        const VertexAttribute* Attributes;
+        int                    AttributeCount;
+        UniformDesc*           Uniforms;
+        usize                  UniformsCount = 0;
     };
 
     struct BufferDesc
@@ -74,21 +81,6 @@ namespace cw::graphics
         usize Size;
         void*  Data;
     };
-
-    enum UNIFORM_TYPE
-    {
-        UNIFORM_TYPE_FLOAT,
-        UNIFORM_TYPE_FLOAT2,
-        UNIFORM_TYPE_FLOAT3,
-        UNIFORM_TYPE_MAT4,
-    };
-
-    struct Uniform
-    {
-        UNIFORM_TYPE Type;
-        void* Buffer;
-    };
-
 
     typedef bool (*FInitialize)(void* window);
 
@@ -106,15 +98,23 @@ namespace cw::graphics
 
     typedef void (*FBindPipeline)(const HPipeline pipeline);
 
-    typedef void (*FGetPipelineBinary)(HPipeline pipeline, void** out_data, usize* out_size);
-
-    typedef const char* (*FGetPipelineCacheId)();
-
     typedef HBuffer (*FCreateBuffer)(const BufferDesc* desc);
 
     typedef void (*FDeleteBuffer)(const HBuffer buffer);
 
     typedef void (*FDrawMesh)(const Mesh* mesh, HPipeline pipeline);
+
+    typedef void (*FGetUniform)(const HPipeline pipeline, uint64 name_hash, HUniform* out_uniform);
+
+    typedef void (*FSetFloat)(const HUniform uniform, float value);
+
+    typedef void (*FSetVec2)(const HUniform uniform, Vec2 value);
+
+    typedef void (*FSetVec3)(const HUniform uniform, Vec3 value);
+
+    typedef void (*FSetVec4)(const HUniform uniform, Vec4 value);
+
+    typedef void (*FSetMat4)(const HUniform uniform, const float* value);
 
     struct RenderBackend
     {
@@ -126,8 +126,12 @@ namespace cw::graphics
         FCreatePipeline     CreatePipeline;
         FDestroyPipeline    DestroyPipeline;
         FBindPipeline       BindPipeline;
-        FGetPipelineBinary  GetPipelineBinary;
-        FGetPipelineCacheId GetPipelineCacheId;
+        FGetUniform         GetUniform;
+        FSetFloat           SetFloat;
+        FSetVec2            SetVec2;
+        FSetVec3            SetVec3;
+        FSetVec4            SetVec4;
+        FSetMat4            SetMat4;
         FCreateBuffer       CreateBuffer;
         FDeleteBuffer       DeleteBuffer;
         FDrawMesh           DrawMesh;
