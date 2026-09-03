@@ -11,7 +11,7 @@ using namespace cw::graphics;
 
 struct GameState
 {
-    material::Material* Material;
+    Material* Material;
     Mesh* Mesh;
     float Time = 0.0f;
     Vec4 Color;
@@ -28,7 +28,7 @@ void CW_AppInitialize(const Engine* engine)
     static const uint32 indices[] = {0, 1, 2};
 
     g_State.Mesh = CreateMesh(vertices, sizeof(vertices), indices, 3);
-    g_State.Material = material::LoadMaterial(engine->Graphics->MaterialContext, "materials/blue.mat");
+    g_State.Material = LoadMaterial(engine->Graphics->MaterialContext, "materials/blue.mat");
 }
 
 void CW_AppUpdate(const Engine* engine)
@@ -38,11 +38,11 @@ void CW_AppUpdate(const Engine* engine)
     float valuey = cos(g_State.Time);
     float valuez = cos(sin(g_State.Time));
     g_State.Color = vec::Make<float>((float)valuex, (float)valuey, (float)valuez, 255.0f);
-//    material::SetVec4(g_State.Material, utils::HashString("u_Color"), g_State.Color);
+//    SetVec4(g_State.Material, utils::HashString("u_Color"), g_State.Color);
     DrawMesh(g_State.Material, g_State.Mesh);
 }
 
 void CW_AppDestroy(const Engine* engine)
 {
-    material::DestroyMaterial(g_State.Material);
+    DestroyMaterial(g_State.Material);
 }

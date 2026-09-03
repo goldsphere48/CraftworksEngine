@@ -27,6 +27,13 @@ namespace cw::graphics
         VERTEX_FORMAT_UBYTE4,
     };
 
+    struct Camera
+    {
+        Mat4 ViewProjection;
+        Mat4 View;
+        Mat4 Projection;
+    };
+
     struct Viewport
     {
         Vec2i Size;
@@ -104,7 +111,7 @@ namespace cw::graphics
 
     typedef void (*FDrawMesh)(const Mesh* mesh, HPipeline pipeline);
 
-    typedef void (*FGetUniform)(const HPipeline pipeline, uint64 name_hash, HUniform* out_uniform);
+    typedef void (*FGetUniform)(const HPipeline pipeline, uint64 nameHash, HUniform* outUniform);
 
     typedef void (*FSetFloat)(const HUniform uniform, float value);
 

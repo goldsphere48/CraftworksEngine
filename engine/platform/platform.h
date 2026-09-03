@@ -100,9 +100,9 @@ namespace cw::platform
 
     void PollEvents();
 
-    bool GetExeDir(char* out_utf8, usize size);
+    bool GetExeDir(char* outUtf8, usize size);
 
-    bool ReadFileToBuffer(const char* utf8_path, void** out_data, usize* out_size);
+    bool ReadFileToBuffer(const char* utf8Path, void** outData, usize* outSize);
 
     Vec2i GetViewportSize(const PlatformContext* ctx);
 

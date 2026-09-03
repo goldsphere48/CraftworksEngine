@@ -521,11 +521,11 @@ namespace cw::platform
         return 0;
     }
 
-    static bool QueryMonitorInfo(HMonitor monitor, MONITORINFOEXW* out_info)
+    static bool QueryMonitorInfo(HMonitor monitor, MONITORINFOEXW* outInfo)
     {
-        out_info->cbSize = sizeof(MONITORINFOEXW);
+        outInfo->cbSize = sizeof(MONITORINFOEXW);
 
-        return GetMonitorInfoW(static_cast<HMONITOR>(monitor), out_info) != 0;
+        return GetMonitorInfoW(static_cast<HMONITOR>(monitor), outInfo) != 0;
     }
 
     static BOOL CALLBACK MonitorEnumProc(HMONITOR hMon, HDC hdc, LPRECT lprcMonitor, LPARAM pData)
@@ -577,25 +577,25 @@ namespace cw::platform
             return nullptr;            
         }
 
-        int monitor_index = params->MonitorIndex;
-        if (params->MonitorIndex < 0 || monitor_index >= ctx->MonitorsCount)
+        int monitorIndex = params->MonitorIndex;
+        if (params->MonitorIndex < 0 || monitorIndex >= ctx->MonitorsCount)
         {
             for (int i = 0; i < ctx->MonitorsCount; ++i)
             {
                 if (ctx->Monitors[i].Primary)
                 {
-                    monitor_index = i;
+                    monitorIndex = i;
                     break;
                 }
             }
         }
 
-        if (monitor_index < 0)
+        if (monitorIndex < 0)
         {
-            monitor_index = 0;
+            monitorIndex = 0;
         }
 
-        ctx->CurrentMonitor = ctx->Monitors[monitor_index];
+        ctx->CurrentMonitor = ctx->Monitors[monitorIndex];
         
         if (params->WindowWidth <= 0 || params->WindowHeight <=0)
         {
@@ -632,22 +632,22 @@ namespace cw::platform
         int windowWidth = clientRect.right  - clientRect.left;
         int windowHeight = clientRect.bottom - clientRect.top;
 
-        MONITORINFOEXW monitor_info;
-        if (!QueryMonitorInfo(ctx->CurrentMonitor.Monitor, &monitor_info))
+        MONITORINFOEXW monitorInfo;
+        if (!QueryMonitorInfo(ctx->CurrentMonitor.Monitor, &monitorInfo))
         {
             Destroy(ctx);
             return nullptr;
         }
 
-        CW_INFO("%d %d %d %d", monitor_info.rcMonitor.left, monitor_info.rcMonitor.top, windowWidth, windowHeight);
+        CW_INFO("%d %d %d %d", monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top, windowWidth, windowHeight);
 
         ctx->Window = CreateWindowExW(
             dwExStyle,
             wc.lpszClassName,
             title,
             dwStyle,
-            monitor_info.rcWork.left,
-            monitor_info.rcWork.top,
+            monitorInfo.rcWork.left,
+            monitorInfo.rcWork.top,
             windowWidth,
             windowHeight,
             nullptr,
@@ -697,7 +697,7 @@ namespace cw::platform
         }
     }
 
-    bool GetExeDir(char* out_utf8, usize size)
+    bool GetExeDir(char* outUtf8, usize size)
     {
         wchar_t buffer[CW_MAX_PATH];
 
@@ -717,15 +717,15 @@ namespace cw::platform
         }
 
         int written =
-            WideCharToMultiByte(CP_UTF8, 0, buffer, -1, out_utf8, (int)size, nullptr, nullptr);
+            WideCharToMultiByte(CP_UTF8, 0, buffer, -1, outUtf8, (int)size, nullptr, nullptr);
 
         return written > 0;
     }
 
-    bool ReadFileToBuffer(const char* utf8_path, void** out_data, usize* out_size)
+    bool ReadFileToBuffer(const char* utf8Path, void** outData, usize* outSize)
     {
         wchar_t path[CW_MAX_PATH];
-        if (MultiByteToWideChar(CP_UTF8, 0, utf8_path, -1, path, CW_MAX_PATH) == 0)
+        if (MultiByteToWideChar(CP_UTF8, 0, utf8Path, -1, path, CW_MAX_PATH) == 0)
         {
             return false;
         }
@@ -763,8 +763,8 @@ namespace cw::platform
         }
 
         ((char*)data)[read] = '\0';
-        *out_data           = data;
-        *out_size           = (usize)size.QuadPart;
+        *outData            = data;
+        *outSize            = (usize)size.QuadPart;
 
         return true;
     }

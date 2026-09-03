@@ -1,13 +1,13 @@
 #pragma once
 
 #include "core/types.h"
-#include "renderer_backend.h"
 #include "material.h"
+#include "renderer_backend.h"
 
 namespace cw::graphics
 {
     struct PipelineManager;
-    
+
     struct GraphicsParams
     {
         void*               Window;
@@ -17,9 +17,9 @@ namespace cw::graphics
 
     struct GraphicsContext
     {
-        Viewport         Viewport;
-        PipelineManager* PipelineManager;
-        material::MaterialContext* MaterialContext;
+        Viewport                   Viewport;
+        PipelineManager*           PipelineManager;
+        MaterialContext*           MaterialContext;
     };
 
     GraphicsContext* Create(const GraphicsParams* params);
@@ -36,25 +36,15 @@ namespace cw::graphics
 
     void DestroyPipeline(HPipeline pipeline);
 
-    void GetUniform(const HPipeline pipeline, uint64 name_hash, HUniform* out_uniform);
+    void GetUniform(const HPipeline pipeline, uint64 nameHash, HUniform* outUniform);
 
-    void SetFloat(const HUniform uniform, float value);
-
-    void SetVec2(const HUniform uniform, Vec2 value);
-
-    void SetVec3(const HUniform uniform, Vec3 value);
-
-    void SetVec4(const HUniform uniform, Vec4 value);
-
-    void SetMat4(const HUniform uniform, const float* value);
-
-    void DrawMesh(const material::Material* material, const Mesh* mesh);
+    void DrawMesh(const Material* material, const Mesh* mesh);
 
     Mesh* CreateMesh(
         const void*   vertices,
-        usize         vertices_size,
+        usize         verticesSize,
         const uint32* indices,
-        usize         index_count
+        usize         indexCount
     );
 
     void DestroyMesh(const Mesh* mesh);

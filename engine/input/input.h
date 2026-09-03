@@ -30,5 +30,5 @@ namespace cw::input
     Vec2i GetMouseDelta();
 
     KEY_MOD GetMods();
-    bool IsModDown(KEY_MOD mod_flags);
+    bool IsModDown(KEY_MOD modFlags);
 }

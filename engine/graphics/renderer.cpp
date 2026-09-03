@@ -11,7 +11,7 @@
 namespace cw::graphics
 {
     static RenderBackend g_Backend;
-    
+
     GraphicsContext* Create(const GraphicsParams* params)
     {
         g_Backend.BackendType = params->Backend;
@@ -32,7 +32,7 @@ namespace cw::graphics
 
         GraphicsContext* ctx = new GraphicsContext;
         ctx->PipelineManager = CreatePipelineManager();
-        ctx->MaterialContext = material::CreateContext(ctx->PipelineManager);
+        ctx->MaterialContext = CreateContext(ctx->PipelineManager);
 
         OnResize(ctx, params->Viewport.X, params->Viewport.Y);
 
@@ -62,31 +62,6 @@ namespace cw::graphics
         g_Backend.GetUniform(pipeline, nameHash, outUniform);
     }
 
-    void SetFloat(const HUniform uniform, float value)
-    {
-        g_Backend.SetFloat(uniform, value);
-    }
-
-    void SetVec2(const HUniform uniform, Vec2 value)
-    {
-        g_Backend.SetVec2(uniform, value);
-    }
-
-    void SetVec3(const HUniform uniform, Vec3 value)
-    {
-        g_Backend.SetVec3(uniform, value);
-    }
-
-    void SetVec4(const HUniform uniform, Vec4 value)
-    {
-        g_Backend.SetVec4(uniform, value);
-    }
-
-    void SetMat4(const HUniform uniform, const float* value)
-    {
-        g_Backend.SetMat4(uniform, value);
-    }
-
     void BeginFrame()
     {
         g_Backend.BeginFrame();
@@ -97,26 +72,26 @@ namespace cw::graphics
         g_Backend.EndFrame();
     }
 
-    void DrawMesh(const material::Material* material, const Mesh* mesh)
+    void DrawMesh(const Material* material, const Mesh* mesh)
     {
         g_Backend.BindPipeline(material->Pipeline->BackendPipeline);
         for (usize i = 0; i < material->Pipeline->UniformsCount; ++i)
         {
-            const PipelineUniform&             uniform   = material->Pipeline->Uniforms[i];
-            const material::MaterialParameter& parameter = material->Parameters[i];
+            const PipelineUniform&   uniform   = material->Pipeline->Uniforms[i];
+            const MaterialParameter& parameter = material->Parameters[i];
             switch (uniform.Type)
             {
                 case UNIFORM_TYPE_FLOAT:
-                    SetFloat(uniform.BackendUniform, parameter.Value[0]);
+                    g_Backend.SetFloat(uniform.BackendUniform, parameter.Value[0]);
                     break;
                 case UNIFORM_TYPE_VEC2:
-                    SetVec2(
+                    g_Backend.SetVec2(
                         uniform.BackendUniform,
                         math::vec::Make<float>(parameter.Value[0], parameter.Value[1])
                     );
                     break;
                 case UNIFORM_TYPE_VEC3:
-                    SetVec3(
+                    g_Backend.SetVec3(
                         uniform.BackendUniform,
                         math::vec::Make<float>(
                             parameter.Value[0],
@@ -126,7 +101,7 @@ namespace cw::graphics
                     );
                     break;
                 case UNIFORM_TYPE_VEC4:
-                    SetVec4(
+                    g_Backend.SetVec4(
                         uniform.BackendUniform,
                         math::vec::Make<float>(
                             parameter.Value[0],
@@ -137,24 +112,24 @@ namespace cw::graphics
                     );
                     break;
                 case UNIFORM_TYPE_MAT4:
-                    SetMat4(uniform.BackendUniform, &parameter.Value[0]);
+                    g_Backend.SetMat4(uniform.BackendUniform, &parameter.Value[0]);
                     break;
             }
         }
         g_Backend.DrawMesh(mesh, material->Pipeline->BackendPipeline);
     }
 
-    Mesh* CreateMesh(const void* vertices, usize vertices_size, const uint32* indices, usize index_count)
+    Mesh* CreateMesh(const void* vertices, usize verticesSize, const uint32* indices, usize indexCount)
     {
         BufferDesc vertexDesc = {
             .Count = 0,
-            .Size  = vertices_size,
+            .Size  = verticesSize,
             .Data  = (void*)vertices,
         };
 
         BufferDesc indexDesc = {
-            .Count = index_count,
-            .Size  = index_count * sizeof(uint32),
+            .Count = indexCount,
+            .Size  = indexCount * sizeof(uint32),
             .Data  = (void*)indices,
         };
 
@@ -173,7 +148,7 @@ namespace cw::graphics
 
     void Destroy(GraphicsContext* ctx)
     {
-        material::DestroyContext(ctx->MaterialContext);
+        DestroyContext(ctx->MaterialContext);
         DestroyPipelineManager(ctx->PipelineManager);
         g_Backend.Destroy();
 

@@ -8,23 +8,23 @@
 
 namespace cw::assets
 {
-    static bool ParseVertexFormat(const char* format, graphics::VERTEX_FORMAT* out_format)
+    static bool ParseVertexFormat(const char* format, graphics::VERTEX_FORMAT* outFormat)
     {
-        if (strcmp(format, "float") == 0) { *out_format = graphics::VERTEX_FORMAT_FLOAT;  return true; }
-        if (strcmp(format, "vec2")  == 0) { *out_format = graphics::VERTEX_FORMAT_FLOAT2; return true; }
-        if (strcmp(format, "vec3")  == 0) { *out_format = graphics::VERTEX_FORMAT_FLOAT3; return true; }
-        if (strcmp(format, "vec4")  == 0) { *out_format = graphics::VERTEX_FORMAT_FLOAT4; return true; }
-        if (strcmp(format, "ubyte4") == 0) { *out_format = graphics::VERTEX_FORMAT_UBYTE4; return true; }
+        if (strcmp(format, "float") == 0) { *outFormat = graphics::VERTEX_FORMAT_FLOAT;  return true; }
+        if (strcmp(format, "vec2")  == 0) { *outFormat = graphics::VERTEX_FORMAT_FLOAT2; return true; }
+        if (strcmp(format, "vec3")  == 0) { *outFormat = graphics::VERTEX_FORMAT_FLOAT3; return true; }
+        if (strcmp(format, "vec4")  == 0) { *outFormat = graphics::VERTEX_FORMAT_FLOAT4; return true; }
+        if (strcmp(format, "ubyte4") == 0) { *outFormat = graphics::VERTEX_FORMAT_UBYTE4; return true; }
         return false;
     }
 
-    static bool ParseUniformType(const char* format, graphics::UNIFORM_TYPE* out_type)
+    static bool ParseUniformType(const char* format, graphics::UNIFORM_TYPE* outType)
     {
-        if (strcmp(format, "float") == 0) { *out_type = graphics::UNIFORM_TYPE_FLOAT; return true; }
-        if (strcmp(format, "vec2")  == 0) { *out_type = graphics::UNIFORM_TYPE_VEC2;  return true; }
-        if (strcmp(format, "vec3")  == 0) { *out_type = graphics::UNIFORM_TYPE_VEC3;  return true; }
-        if (strcmp(format, "vec4")  == 0) { *out_type = graphics::UNIFORM_TYPE_VEC4;  return true; }
-        if (strcmp(format, "mat4")  == 0) { *out_type = graphics::UNIFORM_TYPE_MAT4;  return true; }
+        if (strcmp(format, "float") == 0) { *outType = graphics::UNIFORM_TYPE_FLOAT; return true; }
+        if (strcmp(format, "vec2")  == 0) { *outType = graphics::UNIFORM_TYPE_VEC2;  return true; }
+        if (strcmp(format, "vec3")  == 0) { *outType = graphics::UNIFORM_TYPE_VEC3;  return true; }
+        if (strcmp(format, "vec4")  == 0) { *outType = graphics::UNIFORM_TYPE_VEC4;  return true; }
+        if (strcmp(format, "mat4")  == 0) { *outType = graphics::UNIFORM_TYPE_MAT4;  return true; }
         return false;
     }
 
@@ -54,7 +54,7 @@ namespace cw::assets
         free(info);
     }
 
-    static bool ParseVertexAttributes(toml_datum_t arr, const char* path, PipelineAsset::VertexParameter** out_info, usize* out_count)
+    static bool ParseVertexAttributes(toml_datum_t arr, const char* path, PipelineAsset::VertexParameter** outInfo, usize* outCount)
     {
         PipelineAsset::VertexParameter* info = (PipelineAsset::VertexParameter*)malloc(sizeof(PipelineAsset::VertexParameter) * arr.u.arr.size);
 
@@ -96,12 +96,12 @@ namespace cw::assets
             new (&info[i]) PipelineAsset::VertexParameter{ CopyString(name.u.str.ptr, name.u.str.len), vertexFormat };
         }
 
-        *out_info  = info;
-        *out_count = (usize)arr.u.arr.size;
+        *outInfo  = info;
+        *outCount = (usize)arr.u.arr.size;
         return true;
     }
 
-    static bool ParseUniformParameters(toml_datum_t arr, const char* path, PipelineAsset::UniformParameter** out_info, usize* out_count)
+    static bool ParseUniformParameters(toml_datum_t arr, const char* path, PipelineAsset::UniformParameter** outInfo, usize* outCount)
     {
         PipelineAsset::UniformParameter* info = (PipelineAsset::UniformParameter*)malloc(sizeof(PipelineAsset::UniformParameter) * arr.u.arr.size);
 
@@ -143,8 +143,8 @@ namespace cw::assets
             new (&info[i]) PipelineAsset::UniformParameter{ CopyString(name.u.str.ptr, name.u.str.len), uniformType };
         }
 
-        *out_info  = info;
-        *out_count = (usize)arr.u.arr.size;
+        *outInfo  = info;
+        *outCount = (usize)arr.u.arr.size;
         return true;
     }
 
@@ -269,7 +269,7 @@ namespace cw::assets
         delete[] parameters;
     }
 
-    static bool ParseMaterialParameters(toml_datum_t arr, const char* path, MaterialAsset::Parameter** out_parameters, usize* out_count)
+    static bool ParseMaterialParameters(toml_datum_t arr, const char* path, MaterialAsset::Parameter** outParameters, usize* outCount)
     {
         MaterialAsset::Parameter* parameters = new MaterialAsset::Parameter[arr.u.arr.size];
 
@@ -327,8 +327,8 @@ namespace cw::assets
             parameters[i].ValueCount = (usize)value.u.arr.size;
         }
 
-        *out_parameters = parameters;
-        *out_count      = (usize)arr.u.arr.size;
+        *outParameters = parameters;
+        *outCount      = (usize)arr.u.arr.size;
         return true;
     }
 

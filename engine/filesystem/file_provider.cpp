@@ -42,12 +42,12 @@ namespace cw::fs
         return true;
     }
 
-    static bool FileProviderExist(void* self, const char* utf8_path)
+    static bool FileProviderExist(void* self, const char* utf8Path)
     {
         FileProvider* provider = static_cast<FileProvider*>(self);
 
         char fullPath[CW_MAX_PATH];
-        JoinPath(provider, utf8_path, fullPath, sizeof(fullPath));
+        JoinPath(provider, utf8Path, fullPath, sizeof(fullPath));
 
         FILE* f = fopen(fullPath, "rb");
         if (f == nullptr)
@@ -64,10 +64,10 @@ namespace cw::fs
         delete provider;
     }
 
-    Provider* CreateFileProvider(const char* root_utf8)
+    Provider* CreateFileProvider(const char* rootUtf8)
     {
         FileProvider* fileProvider = new FileProvider;
-        fileProvider->Root = root_utf8;
+        fileProvider->Root = rootUtf8;
 
         Provider* provider = new Provider;
         provider->Read    = FileProviderRead;

@@ -93,7 +93,7 @@ namespace cw::graphics
         glViewport(0, 0, width, height);
     }
 
-    static bool CompileGLSL(const char* source, SHADER_TYPE type, GLuint* shader_out)
+    static bool CompileGLSL(const char* source, SHADER_TYPE type, GLuint* shaderOut)
     {
         GLenum shaderType = type == SHADER_TYPE_VERTEX ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
 
@@ -121,7 +121,7 @@ namespace cw::graphics
             return false;
         }
 
-        *shader_out = id;
+        *shaderOut = id;
 
         return true;
     }
@@ -157,14 +157,14 @@ namespace cw::graphics
         GLSwapBuffers();
     }
 
-    static GLuint CreateProgramFromSource(const char* vertex_source, const char* fragment_source)
+    static GLuint CreateProgramFromSource(const char* vertexSource, const char* fragmentSource)
     {
         GLuint vertex   = 0;
         GLuint fragment = 0;
 
         bool success =
-            CompileGLSL(vertex_source, SHADER_TYPE_VERTEX, &vertex) &&
-            CompileGLSL(fragment_source, SHADER_TYPE_FRAGMENT, &fragment);
+            CompileGLSL(vertexSource, SHADER_TYPE_VERTEX, &vertex) &&
+            CompileGLSL(fragmentSource, SHADER_TYPE_FRAGMENT, &fragment);
 
         if (!success)
         {
@@ -264,11 +264,11 @@ namespace cw::graphics
         
         for (int i = 0; i < desc->UniformsCount; ++i)
         {
-            UniformDesc* u_desc = &desc->Uniforms[i];
+            UniformDesc* uDesc = &desc->Uniforms[i];
             GLUniform* u = &glPipeline->Uniforms[i];
-            GLint location = glGetUniformLocation(program, u_desc->Name);
+            GLint location = glGetUniformLocation(program, uDesc->Name);
             u->Location = location;
-            u->Hash = utils::HashString(u_desc->Name);
+            u->Hash = utils::HashString(uDesc->Name);
         }
 
         glPipeline->Program = program;

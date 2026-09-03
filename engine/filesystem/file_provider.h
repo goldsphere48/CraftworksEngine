@@ -4,5 +4,5 @@
 
 namespace cw::fs
 {
-    Provider* CreateFileProvider(const char* root_utf8);
+    Provider* CreateFileProvider(const char* rootUtf8);
 }

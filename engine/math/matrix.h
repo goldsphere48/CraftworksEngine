@@ -373,16 +373,16 @@ namespace cw::math::mat
         const R o = static_cast<R>(At(matrix, 3, 2));
         const R p = static_cast<R>(At(matrix, 3, 3));
 
-        const R kp_lo = k * p - l * o;
-        const R jp_ln = j * p - l * n;
-        const R jo_kn = j * o - k * n;
+        const R kpLo = k * p - l * o;
+        const R jpLn = j * p - l * n;
+        const R joKn = j * o - k * n;
 
-        const R ip_lm = i * p - l * m;
-        const R io_km = i * o - k * m;
-        const R in_jm = i * n - j * m;
+        const R ipLm = i * p - l * m;
+        const R ioKm = i * o - k * m;
+        const R inJm = i * n - j * m;
 
-        return a * (f * kp_lo - g * jp_ln + h * jo_kn) - b * (e * kp_lo - g * ip_lm + h * io_km)
-               + c * (e * jp_ln - f * ip_lm + h * in_jm) - d * (e * jo_kn - f * io_km + g * in_jm);
+        return a * (f * kpLo - g * jpLn + h * joKn) - b * (e * kpLo - g * ipLm + h * ioKm)
+               + c * (e * jpLn - f * ipLm + h * inJm) - d * (e * joKn - f * ioKm + g * inJm);
     }
 
     template<CFloating T, usize N>

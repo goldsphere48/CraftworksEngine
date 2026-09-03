@@ -91,17 +91,17 @@ namespace cw::fs
         g_fs.Providers[g_fs.ProvidersCount++] = provider;
     }
 
-    FileBuffer* ReadFile(const char* virtual_path)
+    FileBuffer* ReadFile(const char* virtualPath)
     {
         CW_ASSERT(g_fs.IsInitialized);
-        
+
         for (usize i = 0; i < g_fs.ProvidersCount; ++i)
         {
             Provider* p = g_fs.Providers[i];
-            if (p->Exists(p->Self, virtual_path))
+            if (p->Exists(p->Self, virtualPath))
             {
                 FileBuffer* file = new FileBuffer;
-                if (p->Read(p->Self, virtual_path, file))
+                if (p->Read(p->Self, virtualPath, file))
                 {
                     return file;
                 }
@@ -109,7 +109,7 @@ namespace cw::fs
             }
         }
 
-        CW_ERROR("Failed to get resource %s", virtual_path);
+        CW_ERROR("Failed to get resource %s", virtualPath);
         return nullptr;
     }
 

@@ -216,8 +216,8 @@ namespace cw::input
         return g_InputState.Mods;
     }
 
-    bool IsModDown(KEY_MOD mod_flags)
+    bool IsModDown(KEY_MOD modFlags)
     {
-        return mod_flags != KEY_MOD_NONE && (g_InputState.Mods & mod_flags) == mod_flags;
+        return modFlags != KEY_MOD_NONE && (g_InputState.Mods & modFlags) == modFlags;
     }
 }

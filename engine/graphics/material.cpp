@@ -7,9 +7,7 @@
 #include <cstring>
 #include <type_traits>
 
-using namespace cw::graphics;
-
-namespace cw::material
+namespace cw::graphics
 {
     struct MaterialContext
     {
