@@ -1,37 +1,42 @@
 #include "renderer.h"
 
-#include "assets/assets_manager.h"
-#include "logger/log.h"
-#include "math/vector.h"
+#include "material.h"
 #include "opengl/opengl_renderer.h"
 #include "pipeline_manager.h"
 
-#include <cstring>
-
 namespace cw::graphics
 {
-    static RenderBackend g_Backend;
+    static bool BindBackend(RenderBackend* backend, RENDER_BACKEND_TYPE type)
+    {
+        backend->BackendType = type;
+
+        switch (type)
+        {
+            case RENDER_BACKEND_OPENGL:
+                GetGLBindings(backend);
+                return true;
+            default:
+                return false;
+        }
+    }
 
     GraphicsContext* Create(const GraphicsParams* params)
     {
-        g_Backend.BackendType = params->Backend;
+        GraphicsContext* ctx = new GraphicsContext{};
 
-        switch (g_Backend.BackendType)
+        if (!BindBackend(&ctx->Backend, params->Backend))
         {
-            case RENDER_BACKEND_OPENGL:
-                GetGLBindings(&g_Backend);
-                break;
-            default:
-                return nullptr;
-        }
-
-        if (!g_Backend.Initialize(params->Window))
-        {
+            delete ctx;
             return nullptr;
         }
 
-        GraphicsContext* ctx = new GraphicsContext;
-        ctx->PipelineManager = CreatePipelineManager();
+        if (!ctx->Backend.Initialize(params->Window))
+        {
+            delete ctx;
+            return nullptr;
+        }
+
+        ctx->PipelineManager = CreatePipelineManager(ctx);
         ctx->MaterialContext = CreateContext(ctx->PipelineManager);
 
         OnResize(ctx, params->Viewport.X, params->Viewport.Y);
@@ -39,119 +44,119 @@ namespace cw::graphics
         return ctx;
     }
 
+    void Destroy(GraphicsContext* ctx)
+    {
+        DestroyContext(ctx->MaterialContext);
+        DestroyPipelineManager(ctx->PipelineManager);
+        ctx->Backend.Destroy();
+
+        delete ctx;
+    }
+
     void OnResize(GraphicsContext* ctx, int width, int height)
     {
         ctx->Viewport.Size.X = width;
         ctx->Viewport.Size.Y = height;
 
-        g_Backend.UpdateViewport(width, height);
+        ctx->Backend.UpdateViewport(width, height);
     }
 
-    HPipeline CreatePipeline(const PipelineDesc* desc)
+    void BeginFrame(GraphicsContext* ctx)
     {
-        return g_Backend.CreatePipeline(desc);
+        ctx->Backend.BeginFrame();
     }
 
-    void DestroyPipeline(HPipeline pipeline)
+    void EndFrame(GraphicsContext* ctx)
     {
-        g_Backend.DestroyPipeline(pipeline);
+        ctx->Backend.EndFrame();
     }
 
-    void GetUniform(const HPipeline pipeline, uint64 nameHash, HUniform* outUniform)
+    HPipeline CreatePipeline(GraphicsContext* ctx, const PipelineDesc* desc)
     {
-        g_Backend.GetUniform(pipeline, nameHash, outUniform);
+        return ctx->Backend.CreatePipeline(desc);
     }
 
-    void BeginFrame()
+    void DestroyPipeline(GraphicsContext* ctx, HPipeline pipeline)
     {
-        g_Backend.BeginFrame();
+        ctx->Backend.DestroyPipeline(pipeline);
     }
 
-    void EndFrame()
+    void BindPipeline(GraphicsContext* ctx, HPipeline pipeline)
     {
-        g_Backend.EndFrame();
+        ctx->Backend.BindPipeline(pipeline);
     }
 
-    void DrawMesh(const Material* material, const Mesh* mesh)
+    void GetUniform(GraphicsContext* ctx, HPipeline pipeline, uint64 nameHash, HUniform* outUniform)
     {
-        g_Backend.BindPipeline(material->Pipeline->BackendPipeline);
-        for (usize i = 0; i < material->Pipeline->UniformsCount; ++i)
-        {
-            const PipelineUniform&   uniform   = material->Pipeline->Uniforms[i];
-            const MaterialParameter& parameter = material->Parameters[i];
-            switch (uniform.Type)
-            {
-                case UNIFORM_TYPE_FLOAT:
-                    g_Backend.SetFloat(uniform.BackendUniform, parameter.Value[0]);
-                    break;
-                case UNIFORM_TYPE_VEC2:
-                    g_Backend.SetVec2(
-                        uniform.BackendUniform,
-                        math::vec::Make<float>(parameter.Value[0], parameter.Value[1])
-                    );
-                    break;
-                case UNIFORM_TYPE_VEC3:
-                    g_Backend.SetVec3(
-                        uniform.BackendUniform,
-                        math::vec::Make<float>(
-                            parameter.Value[0],
-                            parameter.Value[1],
-                            parameter.Value[2]
-                        )
-                    );
-                    break;
-                case UNIFORM_TYPE_VEC4:
-                    g_Backend.SetVec4(
-                        uniform.BackendUniform,
-                        math::vec::Make<float>(
-                            parameter.Value[0],
-                            parameter.Value[1],
-                            parameter.Value[2],
-                            parameter.Value[3]
-                        )
-                    );
-                    break;
-                case UNIFORM_TYPE_MAT4:
-                    g_Backend.SetMat4(uniform.BackendUniform, &parameter.Value[0]);
-                    break;
-            }
-        }
-        g_Backend.DrawMesh(mesh, material->Pipeline->BackendPipeline);
+        ctx->Backend.GetUniform(pipeline, nameHash, outUniform);
     }
 
-    Mesh* CreateMesh(const void* vertices, usize verticesSize, const uint32* indices, usize indexCount)
+    void SetUniformFloat(GraphicsContext* ctx, HUniform uniform, float value)
     {
-        BufferDesc vertexDesc = {
-            .Count = 0,
-            .Size  = verticesSize,
-            .Data  = (void*)vertices,
+        ctx->Backend.SetFloat(uniform, value);
+    }
+
+    void SetUniformVec2(GraphicsContext* ctx, HUniform uniform, Vec2 value)
+    {
+        ctx->Backend.SetVec2(uniform, value);
+    }
+
+    void SetUniformVec3(GraphicsContext* ctx, HUniform uniform, Vec3 value)
+    {
+        ctx->Backend.SetVec3(uniform, value);
+    }
+
+    void SetUniformVec4(GraphicsContext* ctx, HUniform uniform, Vec4 value)
+    {
+        ctx->Backend.SetVec4(uniform, value);
+    }
+
+    void SetUniformMat4(GraphicsContext* ctx, HUniform uniform, const Mat4* value)
+    {
+        ctx->Backend.SetMat4(uniform, value->Data);
+    }
+
+    Mesh* CreateMesh(
+        GraphicsContext* ctx,
+        const void*      vertices,
+        usize            verticesSize,
+        const uint32*    indices,
+        uint32           indexCount
+    )
+    {
+        const BufferDesc vertexDesc = {
+            .Size = verticesSize,
+            .Data = vertices,
         };
 
-        BufferDesc indexDesc = {
-            .Count = indexCount,
-            .Size  = indexCount * sizeof(uint32),
-            .Data  = (void*)indices,
+        const BufferDesc indexDesc = {
+            .Size = indexCount * sizeof(uint32),
+            .Data = indices,
         };
 
-        Mesh* mesh     = new Mesh;
-        mesh->Vertices = g_Backend.CreateBuffer(&vertexDesc);
-        mesh->Indicies = g_Backend.CreateBuffer(&indexDesc);
+        Mesh* mesh       = new Mesh;
+        mesh->Vertices   = ctx->Backend.CreateBuffer(&vertexDesc);
+        mesh->Indices    = ctx->Backend.CreateBuffer(&indexDesc);
+        mesh->IndexCount = indexCount;
         return mesh;
     }
 
-    void DestroyMesh(const Mesh* mesh)
+    void DestroyMesh(GraphicsContext* ctx, const Mesh* mesh)
     {
-        g_Backend.DeleteBuffer(mesh->Vertices);
-        g_Backend.DeleteBuffer(mesh->Indicies);
+        ctx->Backend.DeleteBuffer(mesh->Vertices);
+        ctx->Backend.DeleteBuffer(mesh->Indices);
         delete mesh;
     }
 
-    void Destroy(GraphicsContext* ctx)
+    void DrawMesh(GraphicsContext* ctx, const Mesh* mesh, HPipeline pipeline)
     {
-        DestroyContext(ctx->MaterialContext);
-        DestroyPipelineManager(ctx->PipelineManager);
-        g_Backend.Destroy();
+        const DrawCall draw = {
+            .Pipeline   = pipeline,
+            .Vertices   = mesh->Vertices,
+            .Indices    = mesh->Indices,
+            .IndexCount = mesh->IndexCount,
+        };
 
-        delete ctx;
+        ctx->Backend.Draw(&draw);
     }
 }

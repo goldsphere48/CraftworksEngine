@@ -2,7 +2,6 @@
 
 #include "core/types.h"
 #include "math/vector.h"
-#include "math/matrix.h"
 
 namespace cw::graphics
 {
@@ -27,13 +26,6 @@ namespace cw::graphics
         VERTEX_FORMAT_UBYTE4,
     };
 
-    struct Camera
-    {
-        Mat4 ViewProjection;
-        Mat4 View;
-        Mat4 Projection;
-    };
-
     struct Viewport
     {
         Vec2i Size;
@@ -45,17 +37,31 @@ namespace cw::graphics
         VERTEX_FORMAT Format;
     };
 
-    typedef void* HPipeline;
-
-    typedef void* HBuffer;
-
-    typedef void* HUniform;
-
-    struct Mesh
+    struct HPipeline
     {
-        HBuffer Vertices;
-        HBuffer Indicies;
+        void* Id = nullptr;
     };
+
+    struct HBuffer
+    {
+        void* Id = nullptr;
+    };
+
+    struct HUniform
+    {
+        void* Id = nullptr;
+    };
+
+    struct HUniformBuffer
+    {
+        void* Id = nullptr;
+    };
+
+    template<typename THandle>
+    constexpr bool IsValid(THandle handle)
+    {
+        return handle.Id != nullptr;
+    }
 
     enum UNIFORM_TYPE
     {
@@ -84,9 +90,18 @@ namespace cw::graphics
 
     struct BufferDesc
     {
-        usize Count;
-        usize Size;
-        void*  Data;
+        usize       Size;
+        const void* Data;
+    };
+
+    // A single indexed draw, fully described by backend resources. The backend
+    // never learns what a mesh is: it is handed the buffers and the count.
+    struct DrawCall
+    {
+        HPipeline Pipeline;
+        HBuffer   Vertices;
+        HBuffer   Indices;
+        uint32    IndexCount = 0;
     };
 
     typedef bool (*FInitialize)(void* window);
@@ -109,7 +124,7 @@ namespace cw::graphics
 
     typedef void (*FDeleteBuffer)(const HBuffer buffer);
 
-    typedef void (*FDrawMesh)(const Mesh* mesh, HPipeline pipeline);
+    typedef void (*FDraw)(const DrawCall* draw);
 
     typedef void (*FGetUniform)(const HPipeline pipeline, uint64 nameHash, HUniform* outUniform);
 
@@ -141,7 +156,7 @@ namespace cw::graphics
         FSetMat4            SetMat4;
         FCreateBuffer       CreateBuffer;
         FDeleteBuffer       DeleteBuffer;
-        FDrawMesh           DrawMesh;
+        FDraw               Draw;
 
         RENDER_BACKEND_TYPE BackendType = RENDER_BACKEND_NONE;
     };

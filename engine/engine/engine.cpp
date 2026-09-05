@@ -82,9 +82,9 @@ namespace cw::engine
     static void UpdateEngine(const Engine* engine)
     {
         platform::PollEvents();
-        graphics::BeginFrame();
+        graphics::BeginFrame(engine->Graphics);
         CW_AppUpdate(engine);
-        graphics::EndFrame();
+        graphics::EndFrame(engine->Graphics);
         input::EndFrame();
     }
 

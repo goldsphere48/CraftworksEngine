@@ -36,7 +36,6 @@ namespace cw::graphics
     struct GLBuffer
     {
         GLuint Id;
-        GLuint Count;
         GLuint Size;
     };
 
@@ -227,7 +226,7 @@ namespace cw::graphics
         GLuint program = CreateProgramFromSource(desc->VertexSource, desc->FragmentSource);
         if (program == 0)
         {
-            return nullptr;
+            return {};
         }
 
         GLuint vao;
@@ -262,7 +261,7 @@ namespace cw::graphics
         glPipeline->Uniforms = new GLUniform[desc->UniformsCount];
         glPipeline->UniformsCount = desc->UniformsCount;
         
-        for (int i = 0; i < desc->UniformsCount; ++i)
+        for (usize i = 0; i < desc->UniformsCount; ++i)
         {
             UniformDesc* uDesc = &desc->Uniforms[i];
             GLUniform* u = &glPipeline->Uniforms[i];
@@ -275,60 +274,60 @@ namespace cw::graphics
         glPipeline->Stride  = offset;
         glPipeline->VAO     = vao;
 
-        return glPipeline;
+        return HPipeline{glPipeline};
     }
 
     static void GetUniform(const HPipeline pipeline, uint64 nameHash, HUniform* outUniform)
     {
-        GLPipeline* glPipeline = static_cast<GLPipeline*>(pipeline);
-        for (int i = 0; i < glPipeline->UniformsCount; ++i)
+        GLPipeline* glPipeline = static_cast<GLPipeline*>(pipeline.Id);
+        for (usize i = 0; i < glPipeline->UniformsCount; ++i)
         {
             if (glPipeline->Uniforms[i].Hash == nameHash)
             {
-                *outUniform = static_cast<HUniform>(&glPipeline->Uniforms[i]);
+                *outUniform = HUniform{&glPipeline->Uniforms[i]};
                 return;
             }
         }
 
-        *outUniform = nullptr;
+        *outUniform = {};
     }
 
     static void SetFloat(HUniform uniform, float value)
     {
-        GLUniform* u = static_cast<GLUniform*>(uniform);
+        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
         glUniform1fv(u->Location, 1, &value);
     }
 
     static void SetVec2(HUniform uniform, Vec2 value)
     {
-        GLUniform* u = static_cast<GLUniform*>(uniform);
+        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
         glUniform2fv(u->Location, 1, value.Data);
     }
 
 
     static void SetVec3(HUniform uniform, Vec3 value)
     {
-        GLUniform* u = static_cast<GLUniform*>(uniform);
+        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
         glUniform3fv(u->Location, 1, value.Data);
     }
 
 
     static void SetVec4(HUniform uniform, Vec4 value)
     {
-        GLUniform* u = static_cast<GLUniform*>(uniform);
+        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
         glUniform4fv(u->Location, 1, value.Data);
     }
 
 
     static void SetMat4(HUniform uniform, const float* value)
     {
-        GLUniform* u = static_cast<GLUniform*>(uniform);
+        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
         glUniformMatrix4fv(u->Location, 1, false, value);
     }
 
     static void DestroyPipeline(const HPipeline pipeline)
     {
-        GLPipeline* glPipeline = (GLPipeline*)pipeline;
+        GLPipeline* glPipeline = (GLPipeline*)pipeline.Id;
         glDeleteProgram(glPipeline->Program);
         glDeleteVertexArrays(1, &glPipeline->VAO);
         delete[] glPipeline->Uniforms;
@@ -337,7 +336,7 @@ namespace cw::graphics
 
     static void BindPipeline(const HPipeline pipeline)
     {
-        GLPipeline* glPipeline = (GLPipeline*)pipeline;
+        GLPipeline* glPipeline = (GLPipeline*)pipeline.Id;
         glUseProgram(glPipeline->Program);
         glBindVertexArray(glPipeline->VAO);
     }
@@ -350,32 +349,29 @@ namespace cw::graphics
 
         GLBuffer* buffer = new GLBuffer;
         buffer->Size     = (GLuint)desc->Size;
-        buffer->Count    = (GLuint)desc->Count;
         buffer->Id       = vbo;
-        return buffer;
+        return HBuffer{buffer};
     }
 
     static void DeleteBuffer(const HBuffer buffer)
     {
-        GLBuffer* glBuffer = (GLBuffer*)buffer;
+        GLBuffer* glBuffer = (GLBuffer*)buffer.Id;
         glDeleteBuffers(1, &glBuffer->Id);
         delete glBuffer;
     }
 
-    static void DrawMesh(const Mesh* mesh, HPipeline pipeline)
+    static void Draw(const DrawCall* draw)
     {
-        GLPipeline* glPipeline = (GLPipeline*)pipeline;
+        GLPipeline* glPipeline = (GLPipeline*)draw->Pipeline.Id;
 
-        GLuint    stride   = glPipeline->Stride;
-        GLuint    vao      = glPipeline->VAO;
-        GLBuffer* indicies = (GLBuffer*)mesh->Indicies;
-        GLuint    vbo      = ((GLBuffer*)mesh->Vertices)->Id;
-        GLuint    ibo      = indicies->Id;
-        GLuint    program  = glPipeline->Program;
+        GLuint stride = glPipeline->Stride;
+        GLuint vao    = glPipeline->VAO;
+        GLuint vbo    = ((GLBuffer*)draw->Vertices.Id)->Id;
+        GLuint ibo    = ((GLBuffer*)draw->Indices.Id)->Id;
 
         glVertexArrayVertexBuffer(vao, 0, vbo, 0, stride);
         glVertexArrayElementBuffer(vao, ibo);
-        glDrawElements(GL_TRIANGLES, indicies->Count, GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, draw->IndexCount, GL_UNSIGNED_INT, nullptr);
     }
 
     void GetGLBindings(RenderBackend* backend)
@@ -395,7 +391,7 @@ namespace cw::graphics
         backend->SetVec4            = SetVec4;
         backend->SetMat4            = SetMat4;
         backend->DeleteBuffer       = DeleteBuffer;
-        backend->DrawMesh           = DrawMesh;
+        backend->Draw               = Draw;
         backend->UpdateViewport     = UpdateViewport;
     }
 }

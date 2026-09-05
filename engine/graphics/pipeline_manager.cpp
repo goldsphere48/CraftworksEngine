@@ -19,6 +19,7 @@ namespace cw::graphics
 
     struct PipelineManager
     {
+        GraphicsContext*      Graphics;
         darray<PipelineEntry> Entries;
     };
 
@@ -30,16 +31,16 @@ namespace cw::graphics
         return copy;
     }
 
-    static void DestroyPipelineResource(PipelineResource* resource)
+    static void DestroyPipelineResource(GraphicsContext* ctx, PipelineResource* resource)
     {
         if (resource == nullptr)
         {
             return;
         }
 
-        if (resource->BackendPipeline != nullptr)
+        if (IsValid(resource->BackendPipeline))
         {
-            graphics::DestroyPipeline(resource->BackendPipeline);
+            graphics::DestroyPipeline(ctx, resource->BackendPipeline);
         }
 
         for (usize i = 0; i < resource->UniformsCount; ++i)
@@ -51,9 +52,11 @@ namespace cw::graphics
         delete resource;
     }
 
-    PipelineManager* CreatePipelineManager()
+    PipelineManager* CreatePipelineManager(GraphicsContext* ctx)
     {
-        return new PipelineManager;
+        PipelineManager* manager = new PipelineManager;
+        manager->Graphics        = ctx;
+        return manager;
     }
 
     void DestroyPipelineManager(PipelineManager* manager)
@@ -66,7 +69,7 @@ namespace cw::graphics
         for (usize i = 0; i < manager->Entries.Count(); ++i)
         {
             PipelineEntry& entry = manager->Entries[i];
-            DestroyPipelineResource(entry.Pipeline);
+            DestroyPipelineResource(manager->Graphics, entry.Pipeline);
             delete[] entry.Path;
         }
 
@@ -127,7 +130,10 @@ namespace cw::graphics
         return true;
     }
 
-    static HPipeline CreatePipelineFromAsset(const assets::PipelineAsset* asset)
+    static HPipeline CreatePipelineFromAsset(
+        GraphicsContext*             ctx,
+        const assets::PipelineAsset* asset
+    )
     {
         VertexAttribute* attributes = new VertexAttribute[asset->VerticesAttributesCount];
         for (usize i = 0; i < asset->VerticesAttributesCount; ++i)
@@ -153,7 +159,7 @@ namespace cw::graphics
             .UniformsCount  = asset->UniformsCount,
         };
 
-        HPipeline pipeline = graphics::CreatePipeline(&desc);
+        HPipeline pipeline = graphics::CreatePipeline(ctx, &desc);
 
         delete[] uniforms;
         delete[] attributes;
@@ -186,8 +192,8 @@ namespace cw::graphics
             return nullptr;
         }
 
-        HPipeline backendPipeline = CreatePipelineFromAsset(asset);
-        if (backendPipeline == nullptr)
+        HPipeline backendPipeline = CreatePipelineFromAsset(manager->Graphics, asset);
+        if (!IsValid(backendPipeline))
         {
             CW_ERROR("Failed to create pipeline %s", path);
             assets::FreePipelineAsset(asset);
@@ -209,16 +215,17 @@ namespace cw::graphics
             uniform.Type     = source.Type;
 
             graphics::GetUniform(
+                manager->Graphics,
                 resource->BackendPipeline,
                 uniform.NameHash,
                 &uniform.BackendUniform
             );
 
-            if (uniform.BackendUniform == nullptr)
+            if (!IsValid(uniform.BackendUniform))
             {
                 CW_ERROR("%s: backend did not create uniform \"%s\"", path, uniform.Name);
                 assets::FreePipelineAsset(asset);
-                DestroyPipelineResource(resource);
+                DestroyPipelineResource(manager->Graphics, resource);
                 return nullptr;
             }
         }
@@ -235,7 +242,7 @@ namespace cw::graphics
         {
             CW_ERROR("Failed to cache pipeline %s", path);
             delete[] entry.Path;
-            DestroyPipelineResource(resource);
+            DestroyPipelineResource(manager->Graphics, resource);
             return nullptr;
         }
 
