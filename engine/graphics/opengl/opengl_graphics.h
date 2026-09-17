@@ -2,7 +2,7 @@
 
 namespace cw::graphics
 {
-    struct RenderBackend;
+    struct GraphicsAdapter;
 
     bool GLInitializePlatform(void* window);
     
@@ -10,5 +10,5 @@ namespace cw::graphics
 
     void GLSwapBuffers();
 
-    void GetGLBindings(RenderBackend* backend);
+    void GetGLAdapter(GraphicsAdapter* adapter);
 }

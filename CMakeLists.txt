@@ -17,16 +17,23 @@ add_library(cw_engine STATIC
   engine/platform/platform_windows.cpp
   engine/input/input.cpp
   engine/logger/log.cpp
-  engine/graphics/renderer.cpp
-  engine/graphics/gfx.cpp
-  engine/graphics/pipeline_manager.cpp
-  engine/graphics/material.cpp
-  engine/graphics/opengl/opengl_windows.cpp
-  engine/graphics/opengl/opengl_renderer.cpp
+  engine/graphics/graphics.cpp
+  engine/graphics/null/null_graphics.cpp
+  engine/graphics/opengl/opengl_platform_win32.cpp
+  engine/graphics/opengl/opengl_graphics.cpp
   engine/graphics/opengl/gl_functions.cpp
+  engine/render/render.cpp
+  engine/render/pipeline.cpp
+  engine/render/material.cpp
+  engine/render/mesh.cpp
+  engine/render/constant_buffer.cpp
   engine/filesystem/filesystem.cpp
   engine/filesystem/file_provider.cpp
   engine/assets/assets_manager.cpp
+  engine/assets/resource_cache.cpp
+  engine/assets/resources.cpp
+  engine/assets/res_pipeline.cpp
+  engine/assets/res_material.cpp
   engine/memory/memory_utils.cpp
 )
 

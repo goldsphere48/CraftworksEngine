@@ -12,7 +12,3 @@ format = "vec4"
 [[uniform]]
 name = "u_Color"
 format = "vec4"
-
-[[uniform]]
-name = "u_Model"
-format = "mat4"

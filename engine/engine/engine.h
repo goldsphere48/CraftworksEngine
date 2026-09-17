@@ -1,15 +1,19 @@
 #pragma once
 
+#include "assets/resources.h"
+#include "graphics/graphics.h"
 #include "platform/platform.h"
-#include "graphics/renderer.h"
+#include "render/render.h"
 
 namespace cw::engine
 {
     struct Engine
     {
-        cw::platform::PlatformContext* Platform = nullptr;
-        cw::graphics::GraphicsContext* Graphics = nullptr;
-        bool IsRunning = true;
+        cw::platform::PlatformContext* Platform  = nullptr;
+        cw::graphics::GraphicsContext* Graphics  = nullptr;
+        cw::render::RenderContext*     Render    = nullptr;
+        cw::assets::AssetContext*      Assets    = nullptr;
+        bool                           IsRunning = true;
     };
 }
 

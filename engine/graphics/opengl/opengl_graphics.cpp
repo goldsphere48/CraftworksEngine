@@ -1,7 +1,7 @@
-#include "opengl_renderer.h"
+#include "opengl_graphics.h"
 
 #include "gl_functions.h"
-#include "graphics/renderer_backend.h"
+#include "graphics/graphics_adapter.h"
 #include "utils/hash.h"
 #include "utils/macros.h"
 
@@ -12,8 +12,9 @@ namespace cw::graphics
 {
     struct GLUniform
     {
-        uint64 Hash;
-        int    Location;
+        uint64       Hash;
+        GLint        Location;
+        UNIFORM_TYPE Type;
     };
     
     struct GLPipeline
@@ -263,11 +264,12 @@ namespace cw::graphics
         
         for (usize i = 0; i < desc->UniformsCount; ++i)
         {
-            UniformDesc* uDesc = &desc->Uniforms[i];
-            GLUniform* u = &glPipeline->Uniforms[i];
-            GLint location = glGetUniformLocation(program, uDesc->Name);
-            u->Location = location;
-            u->Hash = utils::HashString(uDesc->Name);
+            const UniformDesc* uDesc = &desc->Uniforms[i];
+            GLUniform*         u     = &glPipeline->Uniforms[i];
+
+            u->Location = glGetUniformLocation(program, uDesc->Name);
+            u->Hash     = utils::HashString(uDesc->Name);
+            u->Type     = uDesc->Type;
         }
 
         glPipeline->Program = program;
@@ -277,52 +279,94 @@ namespace cw::graphics
         return HPipeline{glPipeline};
     }
 
-    static void GetUniform(const HPipeline pipeline, uint64 nameHash, HUniform* outUniform)
+    // The location handed out is an index into the pipeline's own uniform table,
+    // not a GL location: the GL location and the declared type stay in here, which
+    // is what lets the adapter expose only vec4 and mat4 writes.
+    static HUniformLocation GetUniformLocation(const HPipeline pipeline, uint64 nameHash)
     {
         GLPipeline* glPipeline = static_cast<GLPipeline*>(pipeline.Id);
         for (usize i = 0; i < glPipeline->UniformsCount; ++i)
         {
-            if (glPipeline->Uniforms[i].Hash == nameHash)
+            if (glPipeline->Uniforms[i].Hash != nameHash)
             {
-                *outUniform = HUniform{&glPipeline->Uniforms[i]};
-                return;
+                continue;
             }
+
+            // Declared but never read: the linker stripped it, there is nowhere to write.
+            if (glPipeline->Uniforms[i].Location < 0)
+            {
+                return INVALID_UNIFORM_LOCATION;
+            }
+
+            return static_cast<HUniformLocation>(i);
         }
 
-        *outUniform = {};
+        return INVALID_UNIFORM_LOCATION;
     }
 
-    static void SetFloat(HUniform uniform, float value)
+    static const GLUniform* ResolveUniform(const HPipeline pipeline, HUniformLocation location)
     {
-        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
-        glUniform1fv(u->Location, 1, &value);
+        if (!IsValidLocation(location))
+        {
+            return nullptr;
+        }
+
+        GLPipeline* glPipeline = static_cast<GLPipeline*>(pipeline.Id);
+        if (static_cast<usize>(location) >= glPipeline->UniformsCount)
+        {
+            return nullptr;
+        }
+
+        return &glPipeline->Uniforms[location];
     }
 
-    static void SetVec2(HUniform uniform, Vec2 value)
+    static void
+    SetConstantV4(const HPipeline pipeline, const float* data, usize count, HUniformLocation location)
     {
-        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
-        glUniform2fv(u->Location, 1, value.Data);
+        const GLUniform* uniform = ResolveUniform(pipeline, location);
+        if (uniform == nullptr)
+        {
+            return;
+        }
+
+        const GLsizei elements = static_cast<GLsizei>(count);
+
+        switch (uniform->Type)
+        {
+            case UNIFORM_TYPE_FLOAT:
+                glUniform1fv(uniform->Location, elements, data);
+                break;
+            case UNIFORM_TYPE_VEC2:
+                glUniform2fv(uniform->Location, elements, data);
+                break;
+            case UNIFORM_TYPE_VEC3:
+                glUniform3fv(uniform->Location, elements, data);
+                break;
+            case UNIFORM_TYPE_VEC4:
+                glUniform4fv(uniform->Location, elements, data);
+                break;
+            case UNIFORM_TYPE_MAT4:
+                CW_ERROR("SetConstantV4 used on a mat4 uniform");
+                break;
+        }
     }
 
-
-    static void SetVec3(HUniform uniform, Vec3 value)
+    static void
+    SetConstantM4(const HPipeline pipeline, const float* data, usize count, HUniformLocation location)
     {
-        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
-        glUniform3fv(u->Location, 1, value.Data);
-    }
+        const GLUniform* uniform = ResolveUniform(pipeline, location);
+        if (uniform == nullptr)
+        {
+            return;
+        }
 
+        if (uniform->Type != UNIFORM_TYPE_MAT4)
+        {
+            CW_ERROR("SetConstantM4 used on a non-mat4 uniform");
+            return;
+        }
 
-    static void SetVec4(HUniform uniform, Vec4 value)
-    {
-        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
-        glUniform4fv(u->Location, 1, value.Data);
-    }
-
-
-    static void SetMat4(HUniform uniform, const float* value)
-    {
-        GLUniform* u = static_cast<GLUniform*>(uniform.Id);
-        glUniformMatrix4fv(u->Location, 1, false, value);
+        glUniformMatrix4fv(uniform->Location, static_cast<GLsizei>(count), GL_FALSE, data);
     }
 
     static void DestroyPipeline(const HPipeline pipeline)
@@ -374,24 +418,21 @@ namespace cw::graphics
         glDrawElements(GL_TRIANGLES, draw->IndexCount, GL_UNSIGNED_INT, nullptr);
     }
 
-    void GetGLBindings(RenderBackend* backend)
+    void GetGLAdapter(GraphicsAdapter* adapter)
     {
-        backend->Initialize         = Initialize;
-        backend->Destroy            = Destroy;
-        backend->BeginFrame         = BeginFrame;
-        backend->EndFrame           = EndFrame;
-        backend->CreatePipeline     = CreatePipeline;
-        backend->DestroyPipeline    = DestroyPipeline;
-        backend->BindPipeline       = BindPipeline;
-        backend->CreateBuffer       = CreateBuffer;
-        backend->GetUniform         = GetUniform;
-        backend->SetFloat           = SetFloat;
-        backend->SetVec2            = SetVec2;
-        backend->SetVec3            = SetVec3;
-        backend->SetVec4            = SetVec4;
-        backend->SetMat4            = SetMat4;
-        backend->DeleteBuffer       = DeleteBuffer;
-        backend->Draw               = Draw;
-        backend->UpdateViewport     = UpdateViewport;
+        adapter->Initialize         = Initialize;
+        adapter->Destroy            = Destroy;
+        adapter->BeginFrame         = BeginFrame;
+        adapter->EndFrame           = EndFrame;
+        adapter->CreatePipeline     = CreatePipeline;
+        adapter->DestroyPipeline    = DestroyPipeline;
+        adapter->BindPipeline       = BindPipeline;
+        adapter->CreateBuffer       = CreateBuffer;
+        adapter->GetUniformLocation = GetUniformLocation;
+        adapter->SetConstantV4      = SetConstantV4;
+        adapter->SetConstantM4      = SetConstantM4;
+        adapter->DeleteBuffer       = DeleteBuffer;
+        adapter->Draw               = Draw;
+        adapter->UpdateViewport     = UpdateViewport;
     }
 }

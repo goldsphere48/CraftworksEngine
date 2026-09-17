@@ -1,7 +1,7 @@
 #ifdef CW_PLATFORM_WINDOWS
 
 #include "debug/debug.h"
-#include "opengl_renderer.h"
+#include "opengl_graphics.h"
 #include "gl_functions.h"
 
 #include <windows.h>

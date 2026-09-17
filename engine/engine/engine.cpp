@@ -52,7 +52,7 @@ namespace cw::engine
 
         graphics::GraphicsParams gp;
         gp.Window        = platform::GetNativeWindowHandle(engine->Platform);
-        gp.Backend       = graphics::RENDER_BACKEND_OPENGL;
+        gp.Family        = graphics::ADAPTER_FAMILY_OPENGL;
         gp.Viewport      = platform::GetViewportSize(engine->Platform);
         engine->Graphics = graphics::Create(&gp);
 
@@ -65,11 +65,43 @@ namespace cw::engine
             return nullptr;
         }
 
+        render::RenderParams rp;
+        rp.Graphics         = engine->Graphics;
+        rp.MaxRenderObjects = 4096;
+        engine->Render      = render::CreateRenderContext(&rp);
+
+        if (!engine->Render)
+        {
+            CW_ERROR("Failed to create render context");
+            graphics::Destroy(engine->Graphics);
+            fs::Shutdown();
+            platform::Destroy(engine->Platform);
+            delete engine;
+            return nullptr;
+        }
+
+        engine->Assets = assets::CreateAssetContext(engine->Render);
+
+        if (!engine->Assets)
+        {
+            CW_ERROR("Failed to create asset context");
+            render::DestroyRenderContext(engine->Render);
+            graphics::Destroy(engine->Graphics);
+            fs::Shutdown();
+            platform::Destroy(engine->Platform);
+            delete engine;
+            return nullptr;
+        }
+
         return engine;
     }
 
     static void DestroyEngine(const Engine* engine)
     {
+        assets::DestroyAssetContext(engine->Assets);
+
+        render::DestroyRenderContext(engine->Render);
+
         graphics::Destroy(engine->Graphics);
 
         fs::Shutdown();
@@ -82,9 +114,10 @@ namespace cw::engine
     static void UpdateEngine(const Engine* engine)
     {
         platform::PollEvents();
-        graphics::BeginFrame(engine->Graphics);
+        render::BeginFrame(engine->Render);
         CW_AppUpdate(engine);
-        graphics::EndFrame(engine->Graphics);
+        render::DrawRenderList(engine->Render);
+        render::EndFrame(engine->Render);
         input::EndFrame();
     }
 

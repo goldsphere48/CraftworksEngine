@@ -4,6 +4,7 @@
 #include "types.h"
 
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <type_traits>
 
@@ -79,6 +80,35 @@ namespace cw
             data     = static_cast<T*>(newData);
             capacity = newCapacity;
             return true;
+        }
+
+        // Order-preserving: callers that reason about insertion order (resource
+        // caches destroying newest first) depend on it.
+        void RemoveAt(usize index)
+        {
+            CW_ASSERT(index < count);
+
+            if (index + 1 < count)
+            {
+                memmove(data + index, data + index + 1, sizeof(T) * (count - index - 1));
+            }
+
+            --count;
+        }
+
+        void Clear()
+        {
+            count = 0;
+        }
+
+        const T* Data() const
+        {
+            return data;
+        }
+
+        T* Data()
+        {
+            return data;
         }
 
         const T& operator[](usize index) const

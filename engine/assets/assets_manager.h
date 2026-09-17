@@ -2,7 +2,7 @@
 
 #include "core/types.h"
 #include "filesystem/filesystem.h"
-#include "graphics/renderer_backend.h"
+#include "graphics/graphics_types.h"
 
 namespace cw::assets
 {
